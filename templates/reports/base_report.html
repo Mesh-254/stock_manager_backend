@@ -1,0 +1,471 @@
+{% load humanize static i18n %}
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#4f46e5" />
+    <title>
+      {{ title|default:"Analytics Report" }} – Professional Overview
+    </title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f8fafc;
+        --text-primary: #0f172a;
+        --text-secondary: #475569;
+        --text-muted: #64748b;
+        --border-color: #e2e8f0;
+        --accent-primary: #4f46e5;
+        --accent-hover: #4338ca;
+        --success-color: #16a34a;
+        --warning-color: #ea580c;
+        --error-color: #dc2626;
+        --card-shadow:
+          0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        --card-shadow-hover:
+          0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+        background: linear-gradient(
+          135deg,
+          #f8fafc 0%,
+          #ffffff 50%,
+          #f1f5f9 100%
+        );
+        color: var(--text-primary);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      .card {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+        transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .card:hover {
+        box-shadow: var(--card-shadow-hover);
+        border-color: #cbd5e1;
+        transform: translateY(-2px);
+      }
+
+      .metric-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        text-align: center;
+        gap: 0.75rem;
+      }
+
+      .metric-card p:first-child {
+        font-size: 0.875rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        margin: 0;
+      }
+
+      .metric-card p:last-child {
+        font-size: 3rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: var(--text-primary);
+        margin: 0;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 0.875rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border: 1px solid;
+        transition: all 200ms;
+      }
+
+      .status-paid {
+        background-color: #dcfce7;
+        color: #166534;
+        border-color: #86efac;
+      }
+
+      .status-pending {
+        background-color: #fef08a;
+        color: #a16207;
+        border-color: #fcd34d;
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      .status-failed {
+        background-color: #fee2e2;
+        color: #991b1b;
+        border-color: #fca5a5;
+      }
+
+      button,
+      a[href*="export"] {
+        transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+      }
+
+      button:hover,
+      a[href*="export"]:hover {
+        transform: translateY(-1px);
+      }
+
+      button:focus-visible,
+      a:focus-visible {
+        outline: none;
+        box-shadow:
+          0 0 0 3px rgba(79, 70, 229, 0.1),
+          0 0 0 2px #4f46e5;
+      }
+
+      .btn-primary {
+        background-color: var(--accent-primary);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        box-shadow: 0 4px 6px -1px rgb(79 70 229 / 0.25);
+      }
+
+      .btn-primary:hover {
+        background-color: var(--accent-hover);
+        box-shadow: 0 10px 15px -3px rgb(79 70 229 / 0.3);
+      }
+
+      .btn-secondary {
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        padding: 0.75rem 1.5rem;
+      }
+
+      .btn-secondary:hover {
+        background-color: var(--bg-secondary);
+        border-color: #cbd5e1;
+      }
+
+      .btn-small {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem;
+        border-radius: 8px;
+        transition: all 150ms;
+      }
+
+      .btn-small:hover {
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+      }
+
+      .btn-small svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      /* Print styles */
+      @media print {
+        body {
+          background: white !important;
+          color: var(--text-primary);
+          font-size: 10.5pt;
+        }
+
+        .no-print {
+          display: none !important;
+        }
+
+        .card {
+          box-shadow: none !important;
+          border: 1px solid var(--border-color);
+          page-break-inside: avoid;
+        }
+
+        section {
+          page-break-inside: avoid;
+        }
+
+        .page-break {
+          page-break-after: always;
+        }
+
+        @page {
+          size: A4 landscape;
+          margin: 18mm 20mm 22mm;
+        }
+
+        @page :first {
+          margin-top: 18mm;
+        }
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .metric-card p:last-child {
+          font-size: 2rem;
+        }
+
+        .card {
+          margin-bottom: 1rem;
+        }
+      }
+
+      /* Accessibility */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+      }
+
+      .sr-only:focus {
+        position: static;
+        width: auto;
+        height: auto;
+        overflow: visible;
+        clip: auto;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Skip link -->
+    <a href="#main-content" class="sr-only">Skip to main content</a>
+
+    <div
+      style="
+        max-width: 80rem;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+        min-height: 100vh;
+      "
+    >
+      <!-- Header Section -->
+      <header style="margin-bottom: 3rem">
+        <div style="display: flex; flex-direction: column; gap: 1.5rem">
+          <div>
+            <h1
+              style="
+                font-size: 3.5rem;
+                font-weight: 800;
+                letter-spacing: -0.025em;
+                margin: 0;
+                color: var(--text-primary);
+              "
+            >
+              {{ title|default:"Analytics Report" }}
+            </h1>
+            <p
+              style="
+                margin: 0.75rem 0 0;
+                color: var(--text-secondary);
+                font-size: 1.125rem;
+              "
+            >
+              {% if has_filters %}Custom Filtered View{% else %}Last 30 Days
+              Overview{% endif %}
+              <span style="margin: 0 0.5rem">•</span>
+              Generated {{ "now"|date:"M d, Y H:i" }}
+            </p>
+          </div>
+
+          <!-- Action Buttons -->
+          <div
+            style="display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem"
+            class="no-print"
+          >
+            <button
+              onclick="window.print()"
+              class="btn-secondary"
+              style="display: inline-flex; align-items: center; gap: 0.5rem"
+            >
+              <svg
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                style="width: 16px; height: 16px"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z"
+                />
+              </svg>
+              Print
+            </button>
+            <a
+              href="?{{ request.GET.urlencode }}&export=pdf"
+              class="btn-primary"
+              style="
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                text-decoration: none;
+              "
+            >
+              <svg
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                style="width: 16px; height: 16px"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Export PDF
+            </a>
+          </div>
+        </div>
+      </header>
+
+      <!-- Filters Section -->
+      <section style="margin-bottom: 3rem" class="no-print">
+        <div class="card" style="padding: 2rem">
+          <h2
+            style="
+              font-size: 1.5rem;
+              font-weight: 600;
+              margin: 0 0 1.5rem;
+              color: var(--text-primary);
+            "
+          >
+            Report Filters
+          </h2>
+          <form
+            method="get"
+            style="
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+              gap: 1.5rem;
+            "
+          >
+            {{ filters_form.as_p|safe }}
+            <div style="display: flex; align-items: flex-end">
+              <button type="submit" class="btn-primary" style="width: 100%">
+                Apply Filters
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- Key Metrics -->
+      <section id="main-content" style="margin-bottom: 3rem">
+        <h2 class="sr-only">Key Performance Metrics</h2>
+        <div
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+          "
+        >
+          {% for label, value in metrics.items %}
+          <div class="card metric-card">
+            <p>{{ label }}</p>
+            <p>{{ value }}</p>
+          </div>
+          {% empty %}
+          <div
+            class="card"
+            style="
+              grid-column: 1 / -1;
+              padding: 3rem;
+              text-align: center;
+              color: var(--text-muted);
+            "
+          >
+            No metrics available for the selected period.
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- Report Content Block -->
+      {% block report_content %}
+      <section
+        class="card"
+        style="padding: 2rem; text-align: center; color: var(--text-secondary)"
+      >
+        <p style="font-size: 1.25rem">
+          Specific report content (tables, charts, etc.) will be rendered here.
+        </p>
+      </section>
+      {% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer
+      style="
+        margin-top: 4rem;
+        border-top: 1px solid var(--border-color);
+        padding: 2.5rem 1rem;
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 0.875rem;
+        background: var(--bg-secondary);
+      "
+      class="no-print"
+    >
+      <p style="margin: 0">
+        Report generated on {{ "now"|date:"F d, Y \a\t H:i" }} •
+        <a
+          href="#"
+          style="
+            color: var(--accent-primary);
+            text-decoration: none;
+            transition: color 200ms;
+          "
+        >
+          Return to Dashboard
+        </a>
+      </p>
+    </footer>
+  </body>
+</html>

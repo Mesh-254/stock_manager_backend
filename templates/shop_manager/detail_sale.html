@@ -1,0 +1,183 @@
+{% load static %}
+
+<!doctype html>
+<html lang="en" class="h-full bg-gray-50">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sale Details #{{ sale.id }}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#1d4ed8",
+              danger: "#dc2626",
+              success: "#16a34a",
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="h-full">
+    <div class="min-h-full flex flex-col bg-gray-50">
+      <!-- Header -->
+      <header class="bg-primary text-white py-6 shadow-lg">
+        <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
+          <h1 class="text-3xl font-bold">Sale Details #{{ sale.id }}</h1>
+          <a
+            href="{% url 'admin:shop_manager_sale_changelist' %}"
+            class="bg-white text-primary hover:bg-gray-100 font-medium py-2 px-6 rounded-lg transition"
+          >
+            ← Back to Sales
+          </a>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <main class="flex-grow py-12 px-6">
+        <div
+          class="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden"
+        >
+          <div class="p-8 space-y-10">
+            <!-- Action Buttons -->
+            <div
+              class="flex justify-end space-x-4 pb-6 border-b border-gray-200"
+            >
+              <a
+                href="{% url 'edit_sale' sale.id %}"
+                class="bg-primary hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition shadow"
+              >
+                Edit Sale
+              </a>
+            </div>
+
+            <!-- Sale Summary -->
+            <section>
+              <h2 class="text-2xl font-semibold text-gray-800 mb-6">
+                Sale Summary
+              </h2>
+              <div
+                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 bg-gray-50 p-6 rounded-lg"
+              >
+                <div>
+                  <p class="text-sm text-gray-600">Sale Date</p>
+                  <p class="font-medium">{{ sale.sale_date|date:"d M Y" }}</p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600">Sold By</p>
+                  <p class="font-medium">
+                    {{ sale.sold_by.email }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600">Payment Status</p>
+                  <p class="font-medium capitalize">
+                    {{ sale.payment_status }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600">Payment Method</p>
+                  <p class="font-medium capitalize">
+                    {{ sale.payment_method }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600">Discount</p>
+                  <p class="font-medium">{{ sale.discount|floatformat:2 }}</p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600">Grand Total</p>
+                  <p class="font-bold text-success text-lg">
+                    {{ sale.total_amount|floatformat:2 }}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <!-- Items Table -->
+            <section>
+              <h2 class="text-2xl font-semibold text-gray-800 mb-6">
+                Sold Items
+              </h2>
+              <div class="overflow-x-auto">
+                <table class="w-full table-auto border-collapse">
+                  <thead class="bg-gray-100">
+                    <tr>
+                      <th
+                        class="px-6 py-3 text-left text-sm font-medium text-gray-700"
+                      >
+                        Product
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-sm font-medium text-gray-700 w-32"
+                      >
+                        Quantity
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-sm font-medium text-gray-700 w-40"
+                      >
+                        Unit Cost (Current Avg)
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-sm font-medium text-gray-700 w-40"
+                      >
+                        Unit Price (Actual Sold)
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-sm font-medium text-gray-700 w-40"
+                      >
+                        Subtotal (Actual)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    {% for item in enriched_items %}
+                    <tr>
+                      <td class="px-6 py-4">{{ item.product_name }}</td>
+                      <td class="px-6 py-4 text-center">{{ item.quantity }}</td>
+                      <td class="px-6 py-4 text-right">
+                        {{ item.current_unit_cost}}
+                      </td>
+                      <td class="px-6 py-4 text-right">
+                        {{ item.unit_selling_price|floatformat:2 }}
+                      </td>
+                      <td class="px-6 py-4 text-right font-medium">
+                        {{ item.subtotal|floatformat:2 }}
+                      </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td
+                        colspan="5"
+                        class="px-6 py-8 text-center text-gray-500"
+                      >
+                        No items in this sale.
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                  <tfoot
+                    class="bg-gray-100 font-bold text-lg border-t-2 border-gray-300"
+                  >
+                    <tr>
+                      <td colspan="3" class="px-6 py-4 text-right">
+                        Grand Total:
+                      </td>
+                      <td colspan="2" class="px-6 py-4 text-right text-success">
+                        {{ sale.total_amount|floatformat:2 }}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

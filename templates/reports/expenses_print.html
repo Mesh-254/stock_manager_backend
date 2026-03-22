@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Expenses Report – {{ title }}</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      /* Reuse sales_print.html style block */
+      /* Add/override: */
+      .expense-amount {
+        color: #dc2626;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    {% load humanize %}
+
+    <div class="container">
+      <header>
+        <h1>Expenses Report</h1>
+        <p class="report-meta">Generated on {{ now|date:"F d, Y \a\t H:i" }}</p>
+      </header>
+
+      <!-- Expense Metrics -->
+      {% if metrics %} ... same 2-column metrics table ... {% endif %}
+
+      <!-- Expense Breakdown by Category -->
+      {% if expense_by_category %}
+      <section>
+        <h2>Expenses by Category</h2>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40%">Category</th>
+              <th style="width: 20%; text-align: right">Count</th>
+              <th style="width: 25%; text-align: right">Total Amount</th>
+              <th style="width: 15%; text-align: right">% of Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cat in expense_by_category %}
+            <tr>
+              <td><strong>{{ cat.name }}</strong></td>
+              <td style="text-align: right" class="tabular-nums">
+                {{ cat.count|intcomma }}
+              </td>
+              <td style="text-align: right" class="tabular-nums expense-amount">
+                KES {{ cat.total|floatformat:2|intcomma }}
+              </td>
+              <td style="text-align: right" class="tabular-nums">
+                {{ cat.percentage|floatformat:1 }}%
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4" class="empty-state">No expense data</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+      {% endif %}
+
+      <!-- Recent Expenses -->
+      {% if recent_expenses %}
+      <section class="page-break">
+        <h2>Recent Expenses</h2>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 10%; text-align: center">ID</th>
+              <th style="width: 16%">Date</th>
+              <th style="width: 24%">Description</th>
+              <th style="width: 18%">Category</th>
+              <th style="width: 15%; text-align: right">Amount</th>
+              <th style="width: 17%">Paid By</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for exp in recent_expenses %}
+            <tr>
+              <td
+                style="
+                  text-align: center;
+                  font-family: monospace;
+                  font-weight: 700;
+                "
+              >
+                #{{ exp.id }}
+              </td>
+              <td>{{ exp.expense_date|date:"d M Y" }}</td>
+              <td>{{ exp.description|truncatewords:8 }}</td>
+              <td>{{ exp.category.name|default:"—" }}</td>
+              <td style="text-align: right" class="tabular-nums expense-amount">
+                KES {{ exp.amount|floatformat:2|intcomma }}
+              </td>
+              <td>{{ exp.paid_by.full_name|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6" class="empty-state">No expenses recorded</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+      {% endif %}
+
+      <div class="print-footer">
+        <p>
+          Expenses Report – Confidential | Generated {{ "now"|date:"Y-m-d H:i"
+          }}
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

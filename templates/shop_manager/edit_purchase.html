@@ -1,0 +1,266 @@
+{% load static %}
+{% load widget_tweaks %}
+<!doctype html>
+<html lang="en" class="h-full bg-gray-50">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit Purchase #{{ purchase.id }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: "#1d4ed8",
+            danger: "#dc2626",
+            success: "#16a34a",
+          },
+        },
+      },
+    };
+  </script>
+</head>
+<body class="h-full">
+  <div class="min-h-full flex flex-col bg-gray-50">
+    <!-- Header -->
+    <header class="bg-primary text-white py-6 shadow-lg">
+      <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
+        <h1 class="text-3xl font-bold">Edit Purchase #{{ purchase.id }}</h1>
+        <a href="{% url 'admin:shop_manager_purchase_changelist' %}" class="bg-white text-primary hover:bg-gray-100 font-medium py-2 px-6 rounded-lg transition">
+          ← Back to Purchases
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow py-12 px-6">
+      <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="p-8 space-y-10">
+          <form method="post">
+            {% csrf_token %}
+            {{ formset.management_form }}
+
+            <!-- Action Buttons -->
+            <div class="flex justify-end space-x-4 pb-6 border-b border-gray-200">
+              <button type="submit" class="bg-success hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg transition shadow">
+                Save Changes
+              </button>
+              <a href="{% url 'admin:shop_manager_purchase_changelist' %}" class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-6 rounded-lg transition shadow">
+                Cancel
+              </a>
+              <a href="{% url 'admin:shop_manager_purchase_delete' purchase.id %}" class="bg-gray-800 hover:bg-gray-900 text-white font-medium py-2 px-6 rounded-lg transition shadow"
+                 onclick="return confirm('Are you sure you want to permanently delete this purchase and all items? This cannot be undone.')">
+                Delete Purchase
+              </a>
+            </div>
+
+            <!-- Purchase Information -->
+            <section>
+              <h2 class="text-2xl font-semibold text-gray-800 mb-6">Purchase Information</h2>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-gray-50 p-6 rounded-lg">
+                <div class="space-y-1">
+                  <label class="block text-sm font-medium text-gray-700">Supplier</label>
+                  {{ form.supplier|add_class:"block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 px-3 py-2" }}
+                  {% if form.supplier.errors %}<span class="text-danger text-sm block mt-1">{{ form.supplier.errors }}</span>{% endif %}
+                </div>
+                <div class="space-y-1">
+                  <label class="block text-sm font-medium text-gray-700">Purchase Date</label>
+                  {{ form.purchase_date|add_class:"block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 px-3 py-2" }}
+                  {% if form.purchase_date.errors %}<span class="text-danger text-sm block mt-1">{{ form.purchase_date.errors }}</span>{% endif %}
+                </div>
+                <div class="space-y-1">
+                  <label class="block text-sm font-medium text-gray-700">Payment Status</label>
+                  {{ form.payment_status|add_class:"block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 px-3 py-2" }}
+                  {% if form.payment_status.errors %}<span class="text-danger text-sm block mt-1">{{ form.payment_status.errors }}</span>{% endif %}
+                </div>
+                <div class="space-y-1">
+                  <label class="block text-sm font-medium text-gray-700">Payment Method</label>
+                  {{ form.payment_method|add_class:"block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 px-3 py-2" }}
+                  {% if form.payment_method.errors %}<span class="text-danger text-sm block mt-1">{{ form.payment_method.errors }}</span>{% endif %}
+                </div>
+                <div>
+                  <span class="text-sm font-medium text-gray-600">Created By</span>
+                  <p class="text-lg font-semibold">{{ purchase.created_by.get_full_name|default:purchase.created_by.email }}</p>
+                </div>
+                <div>
+                  <span class="text-sm font-medium text-gray-600">Shop</span>
+                  <p class="text-lg font-semibold">{{ purchase.shop.name }}</p>
+                </div>
+              </div>
+              {% if form.non_field_errors %}
+                <div class="mt-4 text-danger">{{ form.non_field_errors }}</div>
+              {% endif %}
+            </section>
+
+            <!-- Items Table -->
+            <section>
+              <h2 class="text-2xl font-semibold text-gray-800 mb-6">Purchase Items</h2>
+              <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                <table id="items-table" class="w-full table-auto">
+                  <thead class="bg-gray-100 text-gray-700 font-medium">
+                    <tr>
+                      <th class="px-6 py-4 text-left">#</th>
+                      <th class="px-6 py-4 text-left">Product</th>
+                      <th class="px-6 py-4 text-left">Brand</th>
+                      <th class="px-6 py-4 text-right">Quantity</th>
+                      <th class="px-6 py-4 text-right">Unit Cost</th>
+                      <th class="px-6 py-4 text-right">Subtotal</th>
+                      <th class="px-6 py-4 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for item_form in formset %}
+                      <tr>
+                        <td class="px-6 py-4 counter">{{ forloop.counter }}</td>
+                        <td class="px-6 py-4">
+                          {{ item_form.id }}  {# Hidden ID for existing items #}
+                          {{ item_form.product|add_class:"block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 px-3 py-2" }}
+                          {% if item_form.product.errors %}<span class="text-danger text-sm block mt-1">{{ item_form.product.errors }}</span>{% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                          {{ item_form.brand|add_class:"block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 px-3 py-2" }}
+                          {% if item_form.brand.errors %}<span class="text-danger text-sm block mt-1">{{ item_form.brand.errors }}</span>{% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                          {{ item_form.quantity|add_class:"block w-full text-right rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 px-3 py-2" }}
+                          {% if item_form.quantity.errors %}<span class="text-danger text-sm block mt-1">{{ item_form.quantity.errors }}</span>{% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                          {{ item_form.unit_cost_price|add_class:"block w-full text-right rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 px-3 py-2" }}
+                          {% if item_form.unit_cost_price.errors %}<span class="text-danger text-sm block mt-1">{{ item_form.unit_cost_price.errors }}</span>{% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right subtotal font-semibold">0.00</td>
+                        <td class="px-6 py-4 text-center">
+                          {{ item_form.DELETE|add_class:"hidden" }}
+                          <label for="{{ item_form.DELETE.id_for_label }}" class="text-sm cursor-pointer text-danger hover:underline">Delete</label>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                  <tfoot class="bg-gray-100 font-bold text-lg">
+                    <tr>
+                      <td colspan="5" class="px-6 py-4 text-right">Grand Total:</td>
+                      <td class="px-6 py-4 text-right text-primary grand-total">0.00</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {% if formset.non_field_errors %}
+                <div class="mt-4 text-danger">{{ formset.non_field_errors }}</div>
+              {% endif %}
+
+              <!-- <button type="button" id="add-item" class="mt-6 bg-primary hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition shadow">
+                Add New Item
+              </button> -->
+            </section>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <!-- Hidden empty form row -->
+    <div id="empty-form" class="hidden">
+      <tr>
+        <td class="px-6 py-4 counter"></td>
+        <td class="px-6 py-4">
+          {{ formset.empty_form.id }}
+          {{ formset.empty_form.product|add_class:"block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 px-3 py-2" }}
+        </td>
+        <td class="px-6 py-4">
+          {{ formset.empty_form.brand|add_class:"block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 px-3 py-2" }}
+        </td>
+        <td class="px-6 py-4">
+          {{ formset.empty_form.quantity|add_class:"block w-full text-right rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 px-3 py-2" }}
+        </td>
+        <td class="px-6 py-4">
+          {{ formset.empty_form.unit_cost_price|add_class:"block w-full text-right rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 px-3 py-2" }}
+        </td>
+        <td class="px-6 py-4 text-right subtotal font-semibold">0.00</td>
+        <td class="px-6 py-4 text-center">
+          {{ formset.empty_form.DELETE|add_class:"hidden" }}
+          <label for="{{ formset.empty_form.DELETE.id_for_label }}" class="text-sm cursor-pointer text-danger hover:underline">Delete</label>
+        </td>
+      </tr>
+    </div>
+
+    <script>
+      const table = document.getElementById('items-table');
+      const tbody = table.querySelector('tbody');
+      const totalForms = document.getElementById('id_form-TOTAL_FORMS');
+      const addButton = document.getElementById('add-item');
+      const emptyFormHtml = document.getElementById('empty-form').innerHTML;
+
+      function calculateSubtotal(row) {
+        const qty = parseFloat(row.querySelector('input[name$="-quantity"]')?.value || 0) || 0;
+        const cost = parseFloat(row.querySelector('input[name$="-unit_cost_price"]')?.value || 0) || 0;
+        row.querySelector('.subtotal').textContent = (qty * cost).toFixed(2);
+      }
+
+      function updateGrandTotal() {
+        let total = 0;
+        tbody.querySelectorAll('tr').forEach(row => {
+          if (!(row.querySelector('input[name$="-DELETE"]')?.checked ?? false)) {
+            total += parseFloat(row.querySelector('.subtotal').textContent || 0);
+          }
+        });
+        document.querySelector('.grand-total').textContent = total.toFixed(2);
+      }
+
+      function updateCounters() {
+        let count = 1;
+        tbody.querySelectorAll('tr').forEach(row => {
+          if (!(row.querySelector('input[name$="-DELETE"]')?.checked ?? false)) {
+            row.querySelector('.counter').textContent = count++;
+          } else {
+            row.querySelector('.counter').textContent = '';
+          }
+        });
+      }
+
+      addButton.addEventListener('click', () => {
+        const formIdx = parseInt(totalForms.value);
+        let newHtml = emptyFormHtml.replace(/__prefix__/g, formIdx);
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = newHtml;
+        const newRow = tempDiv.firstChild;
+        tbody.appendChild(newRow);
+        calculateSubtotal(newRow);
+        updateGrandTotal();
+        updateCounters();
+        totalForms.value = formIdx + 1;
+      });
+
+      table.addEventListener('input', e => {
+        if (e.target.name.endsWith('-quantity') || e.target.name.endsWith('-unit_cost_price')) {
+          calculateSubtotal(e.target.closest('tr'));
+          updateGrandTotal();
+        }
+      });
+
+      table.addEventListener('change', e => {
+        if (e.target.name.endsWith('-DELETE')) {
+          const row = e.target.closest('tr');
+          const hasId = row.querySelector('input[name$="-id"]')?.value;
+          if (e.target.checked && !hasId) {
+            row.remove();
+            totalForms.value = parseInt(totalForms.value) - 1;
+          } else {
+            row.classList.toggle('opacity-50', e.target.checked);
+          }
+          updateGrandTotal();
+          updateCounters();
+        }
+      });
+
+      document.addEventListener('DOMContentLoaded', () => {
+        tbody.querySelectorAll('tr').forEach(calculateSubtotal);
+        updateGrandTotal();
+        updateCounters();
+      });
+    </script>
+  </div>
+</body>
+</html>

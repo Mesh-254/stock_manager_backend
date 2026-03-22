@@ -1,0 +1,392 @@
+{% load static %}
+
+<!doctype html>
+<html lang="en" class="h-full bg-gray-50">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Add New Purchase</title>
+    <!-- Tailwind CSS CDN (dev only – replace with build in production) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Select2 CSS + JS CDN for searchable dropdowns -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#1d4ed8",
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+
+  <body class="h-full">
+    <div class="min-h-full flex flex-col">
+      <!-- Header Bar -->
+      <div class="bg-primary text-white py-4 px-8 shadow-md">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+          <h1 class="text-2xl font-bold">Add New Purchase</h1>
+          <div class="space-x-4">
+            <a
+              href="{% url 'admin:shop_manager_purchase_changelist' %}"
+              class="bg-gray-700 hover:bg-gray-800 text-white font-medium py-2 px-6 rounded-md transition"
+            >
+              Back to List
+            </a>
+            <a
+              href="{% url 'admin:shop_manager_purchase_changelist' %}"
+              class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-md transition"
+            >
+              Cancel
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Form -->
+      <div
+        class="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
+      >
+        <div class="max-w-5xl w-full bg-white p-10 rounded-xl shadow-lg">
+          <form id="purchaseForm" class="space-y-10">
+            {% csrf_token %}
+
+            <!-- Purchase Details -->
+            <div class="border-b pb-8">
+              <h2 class="text-2xl font-semibold text-gray-800 mb-6">
+                Purchase Details
+              </h2>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Supplier: Searchable dropdown -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1"
+                    >Supplier *</label
+                  >
+                  <select id="supplier" class="select2 w-full h-11" required>
+                    <option value="">-- Type to search supplier --</option>
+                    {% for sup in suppliers %}
+                    <option value="{{ sup.id }}">{{ sup.name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <!-- Purchase Date & Time -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1"
+                    >Purchase Date *</label
+                  >
+                  <input
+                    type="date"
+                    id="purchase_date"
+                    value="{% now 'Y-m-d' %}"
+                    required
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary h-11 px-3 border"
+                  />
+                </div>
+
+                <!-- Payment Status -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1"
+                    >Payment Status *</label
+                  >
+                  <select
+                    id="payment_status"
+                    required
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary h-11 px-3 border"
+                  >
+                    <option value="Paid">Paid</option>
+                    <option value="Unpaid">Unpaid</option>
+                    <option value="Partial">Partial</option>
+                  </select>
+                </div>
+
+                <!-- Payment Method -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1"
+                    >Payment Method *</label
+                  >
+                  <select
+                    id="payment_method"
+                    required
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary h-11 px-3 border"
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="Card">Card</option>
+                    <option value="M-Pesa">M-Pesa</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Purchase Items -->
+            <div>
+              <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800">
+                  Purchase Items
+                </h2>
+                <button
+                  type="button"
+                  id="addItemBtn"
+                  class="inline-flex items-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-blue-700 transition"
+                >
+                  + Add Item
+                </button>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table
+                  class="min-w-full divide-y divide-gray-200"
+                  id="itemsTable"
+                >
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Product *
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Brand (optional)
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Quantity *
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Unit Cost *
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Total
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody
+                    class="bg-white divide-y divide-gray-200"
+                    id="itemsBody"
+                  >
+                    <!-- Dynamic rows added here -->
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td
+                        colspan="4"
+                        class="px-6 py-4 text-right font-bold text-xl text-gray-800"
+                      >
+                        Grand Total:
+                      </td>
+                      <td
+                        class="px-6 py-4 text-right font-bold text-xl text-gray-800"
+                        id="grandTotal"
+                      >
+                        0.00
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            <!-- Submit -->
+            <div class="pt-8 border-t">
+              <button
+                type="submit"
+                class="w-full flex justify-center py-4 px-6 border border-transparent rounded-md shadow-sm text-xl font-medium text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition"
+              >
+                Save Purchase
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script>
+
+        function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+          const cookies = document.cookie.split(';');
+          for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+              cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+              break;
+            }
+          }
+        }
+        return cookieValue;
+      }
+      // Global data from Django (safely rendered as valid JS arrays with quoted UUIDs)
+      window.productOptions = [
+        {% if products %}
+          {% for prod in products %}
+            {
+              id: "{{ prod.id }}",
+              text: "{{ prod.name|escapejs }}"
+            }{% if not forloop.last %},{% endif %}
+          {% endfor %}
+        {% endif %}
+      ];
+
+      window.brandOptions = [
+        {% if brands %}
+          {% for br in brands %}
+            {
+              id: "{{ br.id }}",
+              text: "{{ br.name|escapejs }}"
+            }{% if not forloop.last %},{% endif %}
+          {% endfor %}
+        {% endif %}
+      ];
+
+      // Initialize Select2 on static fields
+      $(document).ready(function () {
+        $('#supplier').select2({
+          placeholder: "Type to search supplier...",
+          allowClear: true,
+          width: '100%'
+        });
+      });
+
+      // Dynamic row functions
+      function addItemRow() {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="px-6 py-4">
+            <select class="product-select select2 w-full" required></select>
+          </td>
+          <td class="px-6 py-4">
+            <select class="brand-select select2 w-full"></select>
+          </td>
+          <td class="px-6 py-4">
+            <input type="number" min="1" required class="quantity w-full border rounded px-3 py-2" onchange="calculateRow(this)" />
+          </td>
+          <td class="px-6 py-4">
+            <input type="number" step="0.01" required class="unit-cost w-full border rounded px-3 py-2" onchange="calculateRow(this)" />
+          </td>
+          <td class="px-6 py-4 text-right item-total font-medium">0.00</td>
+          <td class="px-6 py-4">
+            <button type="button" onclick="this.closest('tr').remove(); calculateTotals()" class="text-red-600 hover:text-red-900 font-medium">Remove</button>
+          </td>
+        `;
+        document.getElementById('itemsBody').appendChild(row);
+
+        // Initialize Select2 on new selects
+        $(row).find('.product-select').select2({
+          data: window.productOptions,
+          placeholder: "Type to search product...",
+          allowClear: true,
+          width: '100%'
+        });
+
+        $(row).find('.brand-select').select2({
+          data: window.brandOptions,
+          placeholder: "Optional: Select brand",
+          allowClear: true,
+          width: '100%'
+        });
+      }
+
+      function calculateRow(input) {
+        const row = input.closest('tr');
+        const qty = parseFloat(row.querySelector('.quantity').value) || 0;
+        const cost = parseFloat(row.querySelector('.unit-cost').value) || 0;
+        const total = qty * cost;
+        row.querySelector('.item-total').textContent = total.toFixed(2);
+        calculateTotals();
+      }
+
+      function calculateTotals() {
+        let grand = 0;
+        document.querySelectorAll('#itemsBody tr').forEach(row => {
+          grand += parseFloat(row.querySelector('.item-total').textContent) || 0;
+        });
+        document.getElementById('grandTotal').textContent = grand.toFixed(2);
+      }
+
+      // Add button & initial row
+      document.getElementById('addItemBtn').addEventListener('click', addItemRow);
+      addItemRow(); // First row on load
+
+      // Form Submit
+      document.getElementById('purchaseForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const items = [];
+        document.querySelectorAll('#itemsBody tr').forEach(row => {
+          const product = row.querySelector('.product-select').value;
+          const brand = row.querySelector('.brand-select').value || null;
+          const quantity = parseInt(row.querySelector('.quantity').value);
+          const unit_cost_price = parseFloat(row.querySelector('.unit-cost').value);
+
+          if (product && quantity > 0 && unit_cost_price > 0) {
+            const item = {
+              product: product,  // Already string UUID, serializer accepts str
+              quantity: quantity,
+              unit_cost_price: unit_cost_price
+            };
+            if (brand) item.brand = brand;
+            items.push(item);
+          }
+        });
+
+        if (items.length === 0) {
+          alert('Please add at least one item.');
+          return;
+        }
+
+        const formData = {
+          supplier: document.getElementById('supplier').value,
+          purchase_date: document.getElementById('purchase_date').value,
+          payment_status: document.getElementById('payment_status').value,
+          payment_method: document.getElementById('payment_method').value,
+          items: items
+        };
+
+        try {
+          const response = await fetch('{{ api_url }}', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': '{{ csrf_token }}',
+            },
+            credentials: 'include',
+            body: JSON.stringify(formData)
+          });
+
+          if (response.ok) {
+            alert('Purchase created successfully!');
+            window.location.href = '{% url "admin:shop_manager_purchase_changelist" %}';
+          } else {
+            const error = await response.json();
+            alert('Error: ' + JSON.stringify(error));
+          }
+        } catch (err) {
+          alert('Network error: ' + err.message);
+        }
+      });
+    </script>
+  </body>
+</html>

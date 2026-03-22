@@ -1,0 +1,138 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-full bg-gray-50">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Purchase Details #{{ purchase.id }}</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: "#1d4ed8",
+            danger: "#dc2626",
+            success: "#16a34a",
+          },
+        },
+      },
+    };
+  </script>
+</head>
+<body class="h-full">
+  <div class="min-h-full flex flex-col bg-gray-50">
+    <!-- Header -->
+    <header class="bg-primary text-white py-6 shadow-lg">
+      <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
+        <h1 class="text-3xl font-bold">Purchase Details #{{ purchase.id }}</h1>
+        <a
+          href="{% url 'admin:shop_manager_purchase_changelist' %}"
+          class="bg-white text-primary hover:bg-gray-100 font-medium py-2 px-6 rounded-lg transition"
+        >
+          ← Back to Purchases
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow py-12 px-6">
+      <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="p-8 space-y-10">
+          <!-- Action Buttons -->
+          <div class="flex justify-end space-x-4 pb-6 border-b border-gray-200">
+            <a
+              href="{% url 'edit_purchase' purchase.id %}"
+              class="bg-primary hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition shadow"
+            >
+              Edit Purchase
+            </a>
+            <a
+              href="{% url 'admin:shop_manager_purchase_delete' purchase.id %}"
+              class="bg-gray-800 hover:bg-gray-900 text-white font-medium py-2 px-6 rounded-lg transition shadow"
+              onclick="return confirm('Are you sure you want to permanently delete this purchase and all items? This cannot be undone.')"
+            >
+              Delete Purchase
+            </a>
+          </div>
+
+          <!-- Purchase Summary -->
+          <section>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Purchase Summary</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-gray-50 p-6 rounded-lg">
+              <div>
+                <span class="text-sm font-medium text-gray-600">Supplier</span>
+                <p class="text-lg font-semibold">{{ purchase.supplier.name }}</p>
+              </div>
+              <div>
+                <span class="text-sm font-medium text-gray-600">Purchase Date</span>
+                <p class="text-lg font-semibold">{{ purchase.purchase_date|date:"d M Y" }}</p>
+              </div>
+              <div>
+                <span class="text-sm font-medium text-gray-600">Payment Status</span>
+                <p class="text-lg font-semibold {% if purchase.payment_status == 'Paid' %}text-success{% elif purchase.payment_status == 'Cancelled' %}text-danger{% else %}text-orange-600{% endif %}">
+                  {{ purchase.payment_status }}
+                </p>
+              </div>
+              <div>
+                <span class="text-sm font-medium text-gray-600">Payment Method</span>
+                <p class="text-lg font-semibold">{{ purchase.payment_method }}</p>
+              </div>
+              <div>
+                <span class="text-sm font-medium text-gray-600">Created By</span>
+                <p class="text-lg font-semibold">{{ purchase.created_by.get_full_name|default:purchase.created_by.email }}</p>
+              </div>
+              <div>
+                <span class="text-sm font-medium text-gray-600">Shop</span>
+                <p class="text-lg font-semibold">{{ purchase.shop.name }}</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Items Table -->
+          <section>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Purchase Items ({{ purchase.items.count }})</h2>
+            <div class="overflow-x-auto border border-gray-200 rounded-lg">
+              <table class="w-full table-auto">
+                <thead class="bg-gray-100 text-gray-700 font-medium">
+                  <tr>
+                    <th class="px-6 py-4 text-left">#</th>
+                    <th class="px-6 py-4 text-left">Product</th>
+                    <th class="px-6 py-4 text-left">Brand</th>
+                    <th class="px-6 py-4 text-right">Quantity</th>
+                    <th class="px-6 py-4 text-right">Unit Cost</th>
+                    <th class="px-6 py-4 text-right">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  {% for item in purchase.items.all %}
+                    <tr class="hover:bg-gray-50 transition">
+                      <td class="px-6 py-4">{{ forloop.counter }}</td>
+                      <td class="px-6 py-4 font-medium">{{ item.product.name }}</td>
+                      <td class="px-6 py-4">{{ item.brand.name|default:"—" }}</td>
+                      <td class="px-6 py-4 text-right">{{ item.quantity }}</td>
+                      <td class="px-6 py-4 text-right">{{ item.unit_cost_price|floatformat:2 }}</td>
+                      <td class="px-6 py-4 text-right font-semibold">{{ item.total_cost|floatformat:2 }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr>
+                      <td colspan="6" class="px-6 py-8 text-center text-gray-500">No items in this purchase.</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+                <tfoot class="bg-gray-100 font-bold text-lg">
+                  <tr>
+                    <td colspan="5" class="px-6 py-4 text-right">Grand Total:</td>
+                    <td class="px-6 py-4 text-right text-primary">{{ purchase.total_amount|floatformat:2 }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
