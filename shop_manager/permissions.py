@@ -1,12 +1,30 @@
+"""
+Permissions for Shop Manager API & Admin
+
+Central permission classes used by ViewSets, custom views, and admin.
+Design decisions:
+- Layered permissions (IsCashierOrHigher for read, IsShopAdmin for write).
+- Object-level shop scoping via IsInSameShop (prevents cross-shop data leaks).
+- Reused across DRF and Django admin for consistency.
+"""
+
 from rest_framework import permissions
 
 
 class IsSuperAdmin(permissions.BasePermission):
+    """
+    Only SuperAdmin users.
+    """
+
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role == "SuperAdmin"
 
 
 class IsShopAdmin(permissions.BasePermission):
+    """
+    Only ShopAdmin users (full control within their shop).
+    """
+
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
@@ -14,7 +32,10 @@ class IsShopAdmin(permissions.BasePermission):
 
 
 class IsCashierOrHigher(permissions.BasePermission):
-    """Cashier can read, ShopAdmin & SuperAdmin can read+write"""
+    """
+    Cashier, ShopAdmin, or SuperAdmin.
+    Cashiers have read-only access in most views.
+    """
 
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
@@ -23,7 +44,10 @@ class IsCashierOrHigher(permissions.BasePermission):
 
 
 class IsInSameShop(permissions.BasePermission):
-    """Object-level: only objects belonging to user's shop"""
+    """
+    Object-level permission: user can only access objects belonging to their own shop.
+    SuperAdmin bypasses this check.
+    """
 
     def has_object_permission(self, request, view, obj):
         if request.user.role == "SuperAdmin":

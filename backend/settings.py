@@ -188,7 +188,7 @@ STATIC_URL = "static/"
 # ]
 
 # Where collectstatic puts files in production
-STATIC_ROOT = '/var/www/shopmanager-static/'
+STATIC_ROOT = "/var/www/shopmanager-static/"
 
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
@@ -201,10 +201,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "accounts.User"
 
-# Allauth adapter override
-ACCOUNT_USER_MODEL_USERNAME_FIELD = None
-ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_EMAIL_REQUIRED = True
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -223,17 +219,15 @@ AUTHENTICATION_BACKENDS = [
 # Allauth settings
 SITE_ID = 1
 
-# Modern allauth settings (no deprecations)
-ACCOUNT_LOGIN_METHODS = {"email": True}  # Login with email only
-ACCOUNT_SIGNUP_FIELDS = [
-    "email*",
-    "password1*",
-    "password2*",
-]  # Email required, no username
-ACCOUNT_EMAIL_VERIFICATION = "mandatory"  # Password users must verify
-SOCIALACCOUNT_EMAIL_VERIFICATION = "none"  # Google verifies email
-SOCIALACCOUNT_AUTO_SIGNUP = True
-SOCIALACCOUNT_LOGIN_ON_GET = True
+# =============================================================================
+# ALLAUTH (Fixed deprecation warnings)
+# =============================================================================
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]  # ← Modern way
+ACCOUNT_AUTHENTICATION_METHOD = "email"
+ACCOUNT_EMAIL_VERIFICATION = "optional"  # or 'mandatory'
+
 
 # Google provider – secure env config (no DB SocialApp needed)
 SOCIALACCOUNT_PROVIDERS = {
@@ -250,7 +244,9 @@ SOCIALACCOUNT_PROVIDERS = {
 
 # Redirect after social login
 LOGIN_REDIRECT_URL = "/"  # Frontend will handle role redirect
-ACCOUNT_LOGOUT_REDIRECT_URL = os.getenv("ACCOUNT_LOGOUT_REDIRECT_URL", "http://localhost:5173/")
+ACCOUNT_LOGOUT_REDIRECT_URL = os.getenv(
+    "ACCOUNT_LOGOUT_REDIRECT_URL", "http://localhost:5173/"
+)
 
 
 # JWT Configuration
@@ -268,14 +264,17 @@ SIMPLE_JWT = {
 }
 
 
+# =============================================================================
+# UNFOLD DASHBOARD (Updated to match current models)
+# =============================================================================
 UNFOLD = {
-    "SITE_TITLE": "Car Parts Stock Manager",
-    "SITE_HEADER": "Shop Admin Dashboard",
+    "SITE_TITLE": "Invetory Manager",
+    "SITE_HEADER": "Inventory Manager Dashboard",
     "SITE_URL": "/",
-    "SITE_SYMBOL": "precision_manufacturing",
+    "SITE_SYMBOL": "school",
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": True,
-    "DASHBOARD_CALLBACK": "backend.utils.dashboard.dashboard_callback",
+    "DASHBOARD_CALLBACK": "backend.utils.dashboard.dashboard_callback",  # keep if you have it
     "COLORS": {
         "primary": {
             "50": "#f0f9ff",
@@ -290,7 +289,7 @@ UNFOLD = {
         "show_all_applications": False,
         "navigation": [
             {
-                "title": _("Shop & Users"),
+                "title": _("Core"),
                 "icon": "storefront",
                 "items": [
                     {
@@ -299,50 +298,17 @@ UNFOLD = {
                         "link": reverse_lazy("admin:shop_manager_shop_changelist"),
                     },
                     {
-                        "title": _("Users & Cashiers"),
+                        "title": _("Users"),
                         "icon": "people",
                         "link": reverse_lazy("admin:accounts_user_changelist"),
                         "permission": lambda r: r.user.role
                         in ["SuperAdmin", "ShopAdmin"],
-                    },
-                    {
-                        "title": _("Subscription Plans"),
-                        "icon": "subscriptions",
-                        "link": reverse_lazy(
-                            "admin:shop_manager_subscriptionplan_changelist"
-                        ),
-                        "permission": lambda r: r.user.role == "SuperAdmin",
                     },
                 ],
             },
             {
                 "title": _("Product Catalog"),
                 "icon": "category",
-                "items": [
-                    {
-                        "title": _("Brands"),
-                        "icon": "branding_watermark",
-                        "link": reverse_lazy("admin:shop_manager_brand_changelist"),
-                    },
-                    {
-                        "title": _("Vehicle Makes"),
-                        "icon": "directions_car",
-                        "link": reverse_lazy(
-                            "admin:shop_manager_vehiclemake_changelist"
-                        ),
-                    },
-                    {
-                        "title": _("Vehicle Models"),
-                        "icon": "car_repair",
-                        "link": reverse_lazy(
-                            "admin:shop_manager_vehiclemodel_changelist"
-                        ),
-                    },
-                ],
-            },
-            {
-                "title": _("Inventory Management"),
-                "icon": "inventory_2",
                 "items": [
                     {
                         "title": _("Categories"),
@@ -371,24 +337,24 @@ UNFOLD = {
                 "icon": "swap_horiz",
                 "items": [
                     {
-                        "title": _("Purchase List"),
-                        "icon": "list",
+                        "title": _("Purchases"),
+                        "icon": "shopping_cart",
                         "link": reverse_lazy("admin:shop_manager_purchase_changelist"),
                     },
                     {
                         "title": _("New Purchase"),
                         "icon": "add_shopping_cart",
-                        "link": "/api/shopmanager/add-purchase/",
+                        "link": "/add-purchase/",  # your custom view
                     },
                     {
-                        "title": _("Sales"),
+                        "title": _("Usage / Consumption"),
                         "icon": "point_of_sale",
-                        "link": reverse_lazy("admin:shop_manager_sale_changelist"),
+                        "link": reverse_lazy("admin:shop_manager_usage_changelist"),
                     },
                     {
-                        "title": _("New Sale"),
-                        "icon": "point_of_sale",
-                        "link": "/api/shopmanager/add-sale/",
+                        "title": _("New Usage"),
+                        "icon": "add",
+                        "link": "/add-usage/",
                     },
                     {
                         "title": _("Expenses"),
@@ -402,29 +368,24 @@ UNFOLD = {
                 "icon": "analytics",
                 "items": [
                     {
-                        "title": _("Sales Report"),
+                        "title": _("Usage Report"),
                         "icon": "trending_up",
-                        "link": "/api/shopmanager/reports/sales/",
+                        "link": "/reports/usage/",
                     },
                     {
                         "title": _("Purchase Report"),
                         "icon": "shopping_cart",
-                        "link": "/api/shopmanager/reports/purchases/",
+                        "link": "/reports/purchases/",
                     },
                     {
                         "title": _("Expense Report"),
                         "icon": "receipt_long",
-                        "link": "/api/shopmanager/reports/expenses/",
+                        "link": "/reports/expenses/",
                     },
                     {
                         "title": _("Stock Report"),
                         "icon": "inventory_2",
-                        "link": "/api/shopmanager/reports/stock/",
-                    },
-                    {
-                        "title": _("Returns Report"),
-                        "icon": "assignment_return",
-                        "link": "/api/shopmanager/reports/returns/",
+                        "link": "/reports/stock/",
                     },
                 ],
             },

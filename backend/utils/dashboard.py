@@ -1,391 +1,173 @@
-# shop_manager/dashboard.py
 """
-Enhanced dashboard callback for Unfold admin.
-Features:
-- Full role-based scoping (SuperAdmin vs ShopAdmin)
-- Custom date range filtering via GET params (from_date / to_date)
-- Accurate key metrics using SaleItem snapshots for COGS (unit_cost_price)
-- Dual inventory valuation: selling price & cost price
-- Efficient queries with proper annotations and aggregations
-- Trend data for revenue & gross profit (last 30 days or custom range)
-- Top 10 selling brands by revenue
-- Recent sales, low stock alerts, and recent stock transactions
-- All values in KES with proper formatting
+Dashboard Callback for UNFOLD Admin Dashboard
+
+Provides dynamic KPI cards and context for the school shop inventory dashboard.
 """
 
-import json
 from datetime import timedelta, datetime
 from decimal import Decimal
 
-from django.db.models import Sum, Count, F, Q, Value, DecimalField, DateField
-from django.db.models.functions import TruncDate, Coalesce
+from django.db.models import Sum, F
 from django.utils import timezone
 from django.urls import reverse
-from django.contrib import messages
 
-from accounts.models import User, UserRole
-from shop_manager.models import (
-    Shop,
-    Product,
-    Stock,
-    Sale,
-    SaleItem,
-    Purchase,
-    Expense,
-    StockTransaction,
-)
+from accounts.models import UserRole
+from shop_manager.models import Usage, UsageItem, Purchase, Stock, StockTransaction
 
 
-def get_filtered_qs(request, queryset):
+def dashboard_callback(request, context):
     """
-    Apply role-based scoping to any queryset.
-    - SuperAdmin: full access
-    - ShopAdmin: only their shop (direct + nested relationships)
-    - Others: empty
-    """
-    user = request.user
-
-    if user.role == UserRole.SUPER_ADMIN:
-        return queryset
-
-    if user.role != UserRole.SHOP_ADMIN or not user.shop:
-        return queryset.none()
-
-    model = queryset.model
-
-    # Direct shop field
-    if hasattr(model, "shop"):
-        return queryset.filter(shop=user.shop)
-
-    # Nested relationships
-    if model == Stock:
-        return queryset.filter(product__shop=user.shop)
-    if model == SaleItem:
-        return queryset.filter(sale__shop=user.shop)
-    if model == StockTransaction:
-        return queryset.filter(stock__product__shop=user.shop)
-
-    return queryset.none()
-
-
-def dashboard_callback(request, context=None):
-    """
-    Main dashboard context processor.
-    Returns all data needed for a professional, accurate dashboard.
+    Unfold dashboard callback.
+    Must accept (request, context) and return the (updated) context dict.
     """
     now = timezone.now()
     today = now.date()
-    this_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     thirty_days_ago = now - timedelta(days=30)
 
     user = request.user
 
-    # Early exit if ShopAdmin has no shop assigned
-    if user.role == UserRole.SHOP_ADMIN and not user.shop:
-        messages.warning(
-            request, "Your account is not assigned to any shop. Contact support."
-        )
-        return {
-            "cards": [],
-            "recent_sales": [],
-            "low_stock_alerts": [],
-            "recent_transactions": [],
-            "show_date_filter": False,
-            "error": "No shop assigned",
-        }
+    # Early exit for ShopAdmin without assigned shop
+    if user.role == UserRole.SHOP_ADMIN and not getattr(user, "shop", None):
+        context["cards"] = []
+        context["error"] = "No shop assigned to your account."
+        return context
 
-    # Helper for scoped querysets
-    def filtered(qs):
-        return get_filtered_qs(request, qs)
+    # Scoped queryset helper
+    def scoped(queryset):
+        qs = queryset
+        if user.role == UserRole.SUPER_ADMIN:
+            return qs
+        if user.role == UserRole.SHOP_ADMIN and user.shop:
+            if hasattr(qs.model, "shop"):
+                return qs.filter(shop=user.shop)
+            elif qs.model == UsageItem:
+                return qs.filter(usage__shop=user.shop)
+            elif qs.model == Stock:
+                return qs.filter(product__shop=user.shop)
+        return qs.none()
 
-    # ─── Date Range Handling ─────────────────────────────────────────────
+    # Date range from GET params (for custom filtering on the dashboard)
     from_date_str = request.GET.get("from_date")
     to_date_str = request.GET.get("to_date")
 
     from_date = None
     to_date = None
-
     if from_date_str:
         try:
             from_date = datetime.strptime(from_date_str, "%Y-%m-%d").date()
         except ValueError:
-            from_date = None
-
+            pass
     if to_date_str:
         try:
             to_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
-            to_date += timedelta(
-                days=1
-            )  # Make query inclusive (up to end of selected day)
         except ValueError:
-            to_date = None
+            pass
 
-    # Chart range: custom if provided, else last 30 days
-    chart_start = (
-        datetime.combine(from_date, datetime.min.time())
-        if from_date
-        else thirty_days_ago
-    )
-    chart_end = (
-        datetime.combine(to_date, datetime.max.time()) if to_date else now
-    )  # ← Fixed: no .date()
-    # Filter SaleItem for calculations (most accurate source)
-    sale_items_qs = filtered(SaleItem.objects.all())
+    chart_start = from_date if from_date else thirty_days_ago.date()
+    chart_end = to_date if to_date else today
+
+    # ─── Core Aggregations ─────────────────────────────────────────────
+    usage_qs = scoped(Usage.objects.all())
+    usage_items_qs = scoped(UsageItem.objects.all())
+
     if from_date or to_date:
-        sale_items_qs = sale_items_qs.filter(
-            sale__sale_date__gte=chart_start,
-            sale__sale_date__lt=chart_end if to_date else Q(),
+        usage_qs = usage_qs.filter(
+            usage_date__gte=chart_start, usage_date__lte=chart_end
+        )
+        usage_items_qs = usage_items_qs.filter(
+            usage__usage_date__gte=chart_start, usage__usage_date__lte=chart_end
         )
 
-    # ─── Core Aggregations (All-time unless specified) ───────────────────
-    # Revenue & Gross Profit (using SaleItem snapshots)
-    profit_agg = sale_items_qs.aggregate(
-        total_revenue=Coalesce(
-            Sum(F("quantity") * F("unit_selling_price")), Decimal("0.00")
-        ),
-        total_cogs=Coalesce(Sum(F("quantity") * F("unit_cost_price")), Decimal("0.00")),
-    )
-    total_revenue = profit_agg["total_revenue"]
-    total_gross_profit = profit_agg["total_revenue"] - profit_agg["total_cogs"]
-    gross_margin = (
-        (total_gross_profit / total_revenue * 100)
-        if total_revenue > 0
-        else Decimal("0.0")
+    total_usage_cost = usage_qs.aggregate(total=Sum("total_cost"))["total"] or Decimal(
+        "0.00"
     )
 
-    # This month specifics
-    this_month_items = filtered(
-        SaleItem.objects.filter(sale__sale_date__gte=this_month_start)
-    )
-    this_month_agg = this_month_items.aggregate(
-        revenue=Coalesce(Sum(F("quantity") * F("unit_selling_price")), Decimal("0.00")),
-        count=Count("sale", distinct=True),
-    )
-    revenue_this_month = this_month_agg["revenue"]
-    sales_this_month_count = filtered(
-        Sale.objects.filter(sale_date__gte=this_month_start)
+    this_month_start = now.replace(day=1).date()
+    this_month_usage = usage_qs.filter(usage_date__gte=this_month_start).aggregate(
+        total=Sum("total_cost")
+    )["total"] or Decimal("0.00")
+
+    total_purchase_cost = scoped(Purchase.objects.all()).aggregate(
+        total=Sum("total_amount")
+    )["total"] or Decimal("0.00")
+
+    stock_qs = scoped(Stock.objects.select_related("product"))
+    inventory_cost_value = stock_qs.aggregate(
+        value=Sum(F("quantity") * F("product__average_cost_price"))
+    )["value"] or Decimal("0.00")
+
+    low_stock_count = stock_qs.filter(
+        quantity__lte=F("product__reorder_level"), quantity__gt=0
     ).count()
-    avg_order_value = (
-        revenue_this_month / sales_this_month_count
-        if sales_this_month_count > 0
-        else Decimal("0.00")
-    )
-    # Net Profit (last 30 days): Revenue - Expenses
-    expenses_30d = filtered(
-        Expense.objects.filter(date__gte=thirty_days_ago.date())
-    ).aggregate(total=Coalesce(Sum("amount"), Decimal("0.00")))["total"]
-    net_profit_30d = (revenue_this_month or Decimal("0.00")) - expenses_30d
 
-    # Inventory Valuation
-    stock_qs = filtered(Stock.objects.select_related("product"))
-    inventory_selling = stock_qs.aggregate(
-        value=Coalesce(
-            Sum(F("quantity") * F("product__selling_price")), Decimal("0.00")
-        )
-    )["value"]
-
-    inventory_cost = stock_qs.aggregate(
-        value=Coalesce(
-            Sum(F("quantity") * F("product__average_cost_price")), Decimal("0.00")
-        )
-    )["value"]
-
-    # Low / Out of Stock
-    low_stock_qs = stock_qs.filter(quantity__lte=F("product__reorder_level"))
-    low_stock_count = low_stock_qs.count()
     out_of_stock_count = stock_qs.filter(quantity=0).count()
 
-    # Total sales count (all-time)
-    total_sales_count = filtered(Sale.objects.all()).count()
+    # ─── KPI Cards ─────────────────────────────────────────────────────
+    cards = [
+        {
+            "title": "Total Usage Cost",
+            "value": f"KES {total_usage_cost:,.2f}",
+            "subtitle": f"This month: KES {this_month_usage:,.2f}",
+            "color": "danger",
+            "icon": "trending_down",
+            "url": reverse("admin:shop_manager_usage_changelist"),
+        },
+        {
+            "title": "Total Purchase Cost",
+            "value": f"KES {total_purchase_cost:,.2f}",
+            "subtitle": "All purchases recorded",
+            "color": "success",
+            "icon": "shopping_cart",
+            "url": reverse("admin:shop_manager_purchase_changelist"),
+        },
+        {
+            "title": "Stock Value (Avg Cost)",
+            "value": f"KES {inventory_cost_value:,.2f}",
+            "subtitle": "Current inventory valuation",
+            "color": "amber",
+            "icon": "inventory_2",
+            "url": reverse("admin:shop_manager_stock_changelist"),
+        },
+        {
+            "title": "Stock Alerts",
+            "value": f"{low_stock_count} low • {out_of_stock_count} out",
+            "subtitle": "Items needing attention",
+            "color": "warning" if low_stock_count > 0 else "secondary",
+            "icon": "warning_amber",
+            "url": reverse("admin:shop_manager_stock_changelist"),
+        },
+    ]
 
-    # ─── Chart Data: Daily Revenue & Gross Profit Trend ──────────────────
-    daily_trend = (
-        filtered(
-            SaleItem.objects.filter(
-                sale__sale_date__gte=chart_start, sale__sale_date__lt=chart_end
-            )
-        )
-        .annotate(date=TruncDate("sale__sale_date"))
-        .values("date")
-        .annotate(
-            revenue=Coalesce(
-                Sum(F("quantity") * F("unit_selling_price")), Decimal("0.00")
-            ),
-            cogs=Coalesce(Sum(F("quantity") * F("unit_cost_price")), Decimal("0.00")),
-        )
-        .order_by("date")
-    )
-
-    # Define inclusive end date
-    if to_date:
-        end_date = to_date - timedelta(days=1)  # to_date is already +1 day
-    else:
-        end_date = today  # Include today when no custom range
-
-    # Fill missing dates for continuous chart
-    trend_dates = []
-    trend_revenue = []
-    trend_profit = []
-    current_date = chart_start.date()
-    daily_dict = {item["date"]: item for item in daily_trend}
-
-    while current_date <= end_date:
-        data = daily_dict.get(
-            current_date, {"revenue": Decimal("0.00"), "cogs": Decimal("0.00")}
-        )
-        trend_dates.append(current_date.strftime("%b %d"))  # Nice format: "Feb 12"
-        trend_revenue.append(float(data["revenue"]))
-        trend_profit.append(float(data["revenue"] - data["cogs"]))
-        current_date += timedelta(days=1)
-
-    # ─── Top 10 Selling Categories by Revenue (chart period) ─────────────────
-    top_categories = (
-        filtered(
-            SaleItem.objects.filter(
-                sale__sale_date__gte=chart_start, sale__sale_date__lt=chart_end
-            )
-        )
-        .values(category_name=F("product__category__name"))
-        .annotate(
-            revenue=Coalesce(
-                Sum(F("quantity") * F("unit_selling_price")), Decimal("0.00")
-            )
-        )
-        .order_by("-revenue")[:10]
-    )
-
-    category_names = json.dumps(
-        [item.get("category_name") or "Uncategorized" for item in top_categories]
-    )
-    category_values = json.dumps([float(item["revenue"]) for item in top_categories])
-
-    # ─── Recent Activity ─────────────────────────────────────────────────
-    recent_sales = (
-        filtered(Sale.objects.select_related("sold_by"))
-        .prefetch_related(
-            "items__product",
-            "items__product__category",
-        )
-        .annotate(
-            items_count=Count("items")  # or Count(SaleItem.sale.rel.related_name)
-        )
-        .order_by("-sale_date")[:8]
+    # ─── Recent Activity ───────────────────────────────────────────────
+    recent_usages = (
+        usage_qs.select_related("recorded_by")
+        .prefetch_related("items__product")
+        .order_by("-usage_date")[:8]
     )
 
     recent_low_stock = (
         stock_qs.filter(quantity__lte=F("product__reorder_level"))
         .select_related("product", "product__category")
-        .order_by("quantity")[:8]
-        .values("product__name", "quantity", "product__category__name")
+        .order_by("quantity")[:6]
     )
 
-    recent_transactions = (
-        filtered(
-            StockTransaction.objects.select_related("stock__product", "created_by")
-        )
-        .order_by("-created_at")[:10]
-        .values(
-            "stock__product__name",
-            "quantity_change",
-            "type",
-            "reason",
-            "created_at",
-            "created_by__full_name",
-        )
+    recent_transactions = scoped(
+        StockTransaction.objects.select_related("stock__product", "created_by")
+    ).order_by("-created_at")[:8]
+
+    # ─── Update Context ─────────────────────────────────────────────────
+    context.update(
+        {
+            "cards": cards,
+            "recent_usages": recent_usages,
+            "low_stock_alerts": recent_low_stock,
+            "recent_transactions": recent_transactions,
+            "show_date_filter": True,
+            "from_date": from_date_str,
+            "to_date": to_date_str,
+            "current_month": now.strftime("%B %Y"),
+            "is_superadmin": user.role == UserRole.SUPER_ADMIN,
+        }
     )
-
-    # ─── KPI Cards ───────────────────────────────────────────────────────
-    cards = [
-        {
-            "title": "Total Revenue",
-            "value": f"KES {total_revenue:,.2f}",
-            "subtitle": f"This month: KES {revenue_this_month:,.2f}",
-            "color": "emerald",
-            "icon": "payments",
-            "url": reverse("admin:shop_manager_sale_changelist"),
-        },
-        {
-            "title": "Gross Profit",
-            "value": f"KES {total_gross_profit:,.2f}",
-            "subtitle": "Revenue − COGS (at sale-time cost)",
-            "color": "emerald" if total_gross_profit > 0 else "danger",
-            "icon": "trending_up",
-            "url": reverse("admin:shop_manager_sale_changelist"),
-        },
-        {
-            "title": "Gross Margin",
-            "value": f"{gross_margin:.1f}%",
-            "subtitle": "Gross Profit / Revenue",
-            "color": "blue",
-            "icon": "percent",
-        },
-        {
-            "title": "Net Profit (30d)",
-            "value": f"KES {net_profit_30d:,.2f}",
-            "subtitle": "Revenue − Expenses (last 30 days)",
-            "color": "emerald" if net_profit_30d > 0 else "danger",
-            "icon": "account_balance_wallet",
-            "url": reverse("admin:shop_manager_expense_changelist"),
-        },
-        {
-            "title": "Average Order Value",
-            "value": f"KES {avg_order_value:,.2f}",
-            "subtitle": "This month",
-            "color": "info",
-            "icon": "calculate",
-            "url": reverse("admin:shop_manager_sale_changelist"),
-        },
-        {
-            "title": "Inventory Value (Selling)",
-            "value": f"KES {inventory_selling:,.2f}",
-            "subtitle": "Current stock at selling price",
-            "color": "secondary",
-            "icon": "inventory_2",
-            "url": reverse("admin:shop_manager_stock_changelist"),
-        },
-        {
-            "title": "Inventory Value (Cost)",
-            "value": f"KES {inventory_cost:,.2f}",
-            "subtitle": "Current stock at average cost",
-            "color": "amber",
-            "icon": "account_balance",
-            "url": reverse("admin:shop_manager_stock_changelist"),
-        },
-        {
-            "title": "Stock Alerts",
-            "value": str(low_stock_count),
-            "subtitle": f"Out of stock: {out_of_stock_count}",
-            "color": "warning" if low_stock_count > 0 else "secondary",
-            "icon": "warning_amber",
-            "url": f"{reverse('admin:shop_manager_stock_changelist')}?quantity__lte=10",  # Consider custom filter for reorder_level
-            "help_text": "Items at or below reorder level",
-        },
-    ]
-
-    # ─── Final Context ───────────────────────────────────────────────────
-    extra_context = {
-        "cards": cards,
-        "recent_sales": recent_sales,
-        "low_stock_alerts": recent_low_stock,
-        "recent_transactions": recent_transactions,
-        "show_date_filter": True,
-        "current_month": now.strftime("%B %Y"),
-        "user_role": user.role,
-        "is_superadmin": user.role == UserRole.SUPER_ADMIN,
-        # Chart data
-        "chart_dates": json.dumps(trend_dates),
-        "chart_revenue": json.dumps(trend_revenue),
-        "chart_profit": json.dumps(trend_profit),
-        "category_names": json.dumps(category_names),
-        "category_values": json.dumps(category_values),
-        # For header display
-        "from_date": from_date_str,
-        "to_date": (
-            (to_date - timedelta(days=1)).strftime("%Y-%m-%d") if to_date else None
-        ),
-    }
-
-    if context is not None:
-        context.update(extra_context)
 
     return context
