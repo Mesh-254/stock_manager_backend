@@ -1,89 +1,64 @@
+"""
+Serializers for Shop Management API
+
+This module contains all DRF serializers for the school inventory system.
+It provides:
+- Hyperlinked serializers for browseable API navigation
+- Separate serializers for list, detail, and write operations (best practice)
+- Proper handling of nested items for Purchase and Usage
+- Atomic transactions for data integrity
+- Automatic stock updates and cost calculations
+
+Key Design Decisions:
+- Read-only fields prevent accidental modification of calculated values
+- Write serializers handle complex creation logic (stock, average cost, etc.)
+- Nested writable items with separate read representations for clean API responses
+"""
+
 from rest_framework import serializers
-from shop_manager.signals import recalculate_sale_total
-from .models import *
-from django.core.validators import FileExtensionValidator
-from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import transaction
-from rest_framework.exceptions import ValidationError
 from decimal import Decimal
+from django.db import transaction
+from django.core.validators import FileExtensionValidator
 from django.contrib.auth import get_user_model
 
+User = get_user_model()  # Get the user model for owner relations
 
-User = get_user_model()
-
-
-class BrandSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Brand
-        fields = ["id", "name", "country_of_origin"]
-        read_only_fields = ["id"]
-
-
-# =============================================================================
-# SubscriptionPlan Serializer
-# =============================================================================
-
-
-class SubscriptionPlanSerializer(serializers.HyperlinkedModelSerializer):
-    """
-    Serializer for the SubscriptionPlan model using HyperlinkedModelSerializer.
-    Includes related metadata.
-    """
-
-    # You can add other relations here if needed, for example, linking to a 'Shop' model
-    # shop = serializers.HyperlinkedRelatedField(view_name="shop-detail", read_only=True)
-
-    class Meta:
-        model = SubscriptionPlan
-        fields = [
-            "url",  # Hyperlinked reference to this SubscriptionPlan instance
-            "id",
-            "name",
-            "price_per_month",
-            "user_limit",
-            "product_limit",
-            "shop_limit",
-            "features",
-            "trial_days",
-        ]
-        read_only_fields = ["id", "is_active"]  # Read-only fields
-
-        extra_kwargs = {
-            # Assuming 'subscriptionplan-detail' is your URL pattern name
-            "url": {"view_name": "subscriptionplan-detail"},
-        }
+# Import all models from the current app
+from .models import (
+    Shop,
+    Category,
+    Supplier,
+    Product,
+    Stock,
+    StockTransaction,
+    Purchase,
+    PurchaseItem,
+    Usage,
+    UsageItem,
+)
 
 
 # =============================================================================
-# Shop Serializer
+# SHOP SERIALIZER
 # =============================================================================
-
-
 class ShopSerializer(serializers.HyperlinkedModelSerializer):
     """
-    Serializer for the Shop model. This serializer converts Shop instances to JSON
-    and handles incoming data for creating or updating Shop objects.
-
-    It includes fields for shop details, subscription plan, and owner.
-    The 'logo' field is validated to ensure it is an image and meets the required formats.
+    Serializer for Shop model.
+    Used for creating, updating, and listing shops in the API.
     """
 
-    # Linking to the owner and subscription plan via HyperlinkedRelatedField
+    # Hyperlinked relation to the owner (User)
     owner = serializers.HyperlinkedRelatedField(
         queryset=User.objects.all(),
-        view_name="user-detail",  # Ensure there's a URL pattern named 'user-detail' for User
-    )
-    subscription_plan = serializers.HyperlinkedRelatedField(
-        queryset=SubscriptionPlan.objects.all(),
-        # Ensure there's a URL pattern named 'subscriptionplan-detail' for SubscriptionPlan
-        view_name="subscriptionplan-detail",
+        view_name="user-detail",
+        help_text="URL linking to the shop owner",
     )
 
-    # Handle image validation for the 'logo' field
+    # Image field with validation for allowed formats
     logo = serializers.ImageField(
-        required=False,  # Not mandatory, it can be left blank
+        required=False,
         validators=[FileExtensionValidator(allowed_extensions=["jpg", "jpeg", "png"])],
-        help_text="Upload the shop's logo. Only .jpg, .jpeg, or .png formats are accepted.",
+        help_text="Shop logo image (JPG, JPEG, or PNG only)",
     )
 
     class Meta:
@@ -97,156 +72,79 @@ class ShopSerializer(serializers.HyperlinkedModelSerializer):
             "country",
             "currency_code",
             "logo",
-            "subscription_plan",
             "is_active",
             "created_at",
             "updated_at",
         ]
         extra_kwargs = {
-            # Define the URL name for Shop detail
             "url": {"view_name": "shop-detail"},
         }
 
 
 # =============================================================================
-# Category Serializer
+# CATEGORY SERIALIZER
 # =============================================================================
-
-
 class CategorySerializer(serializers.HyperlinkedModelSerializer):
     """
-    Serializer for the Category model. This serializer converts Category instances to JSON
-    and handles incoming data for creating or updating Category objects.
-    It represents the relationship between Category and Shop using hyperlinks.
+    Serializer for Category model.
+    Categories are shop-specific (unique per shop).
     """
 
-    # Use a hyperlink to represent the related shop, rather than nesting all shop data
     shop = serializers.HyperlinkedRelatedField(
         queryset=Shop.objects.all(),
-        view_name="shop-detail",  # Ensure the URL pattern for shop-detail is defined
-        help_text="URL of the shop to which this category belongs.",
+        view_name="shop-detail",
+        help_text="URL of the shop this category belongs to",
     )
 
     class Meta:
         model = Category
         fields = ["url", "id", "shop", "name", "description"]
         extra_kwargs = {
-            # URL for accessing category details
             "url": {"view_name": "category-detail"},
-            # URL for accessing shop details
-            "shop": {"view_name": "shop-detail"},
         }
 
-    def validate_name(self, value):
-        """
-        Custom validator to ensure the name field is not empty and has a valid length.
-        """
-        if not value:
-            raise serializers.ValidationError("Category name cannot be empty.")
-        if len(value) > 100:
-            raise serializers.ValidationError(
-                "Category name is too long. Maximum length is 100 characters."
-            )
-        return value
-
-    def validate_description(self, value):
-        """
-        Custom validator for description to ensure the description does not exceed 500 characters.
-        """
-        if value and len(value) > 500:
-            raise serializers.ValidationError(
-                "Description is too long. Maximum length is 500 characters."
-            )
-        return value
-
-    def create(self, validated_data):
-        """
-        Override the create method to add custom logic when a category is created.
-        """
-        category = Category.objects.create(**validated_data)
-        return category
-
-    def update(self, instance, validated_data):
-        """
-        Override the update method to add custom logic when a category is updated.
-        """
-        instance.name = validated_data.get("name", instance.name)
-        instance.description = validated_data.get("description", instance.description)
-        instance.shop = validated_data.get("shop", instance.shop)
-        instance.save()
-        return instance
-
 
 # =============================================================================
-# Supplier Serializer
+# SUPPLIER SERIALIZER
 # =============================================================================
-
-
 class SupplierSerializer(serializers.HyperlinkedModelSerializer):
     """
-    Serializer for the Supplier model. This serializer converts Supplier instances to JSON
-    and handles incoming data for creating or updating Supplier objects.
-    It represents the relationship between Supplier and Shop using hyperlinks.
+    Serializer for Supplier model.
+    Used when managing suppliers for purchases.
     """
 
-    # Use a hyperlink to represent the related shop, rather than nesting all shop data
     shop = serializers.HyperlinkedRelatedField(
         queryset=Shop.objects.all(),
-        view_name="shop-detail",  # Ensure the URL pattern for shop-detail is defined
-        help_text="URL of the shop to which this supplier belongs.",
+        view_name="shop-detail",
+        help_text="URL of the shop this supplier is associated with",
     )
 
     class Meta:
         model = Supplier
         fields = ["url", "id", "shop", "name", "phone", "address", "created_at"]
         extra_kwargs = {
-            # URL for accessing supplier details
             "url": {"view_name": "supplier-detail"},
-            # URL for accessing shop details
-            "shop": {"view_name": "shop-detail"},
         }
-
-    def validate_phone(self, value):
-        """
-        Custom validator for the phone number to ensure it's in a valid format.
-        For simplicity, let's assume it should contain only digits and be 10-15 characters long.
-        """
-
-        if len(value) < 10 or len(value) > 15:
-            raise serializers.ValidationError(
-                "Phone number should be between 10 and 15 digits."
-            )
-        return value
-
-    def create(self, validated_data):
-        """
-        Override the create method to add custom logic when a supplier is created.
-        """
-        supplier = Supplier.objects.create(**validated_data)
-        return supplier
-
-    def update(self, instance, validated_data):
-        """
-        Override the update method to add custom logic when a supplier is updated.
-        """
-        instance.name = validated_data.get("name", instance.name)
-        instance.phone = validated_data.get("phone", instance.phone)
-        instance.address = validated_data.get("address", instance.address)
-        instance.shop = validated_data.get("shop", instance.shop)
-        instance.save()
-        return instance
 
 
 # =============================================================================
-# Product Serializer
+# PRODUCT SERIALIZERS
 # =============================================================================
 
 
 class ProductListSerializer(serializers.ModelSerializer):
+    """
+    Lightweight serializer for listing multiple products.
+    Includes computed fields like current_stock and reorder status.
+    """
+
     category = CategorySerializer(read_only=True)
-    brand = BrandSerializer(read_only=True)
-    current_stock = serializers.IntegerField(
-        source="stock.quantity", read_only=True, default=0
+    current_stock = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        source="current_stock",
+        read_only=True,
+        help_text="Current available stock quantity",
     )
     needs_reorder = serializers.SerializerMethodField()
 
@@ -256,9 +154,9 @@ class ProductListSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "category",
-            "brand",
+            "unit",
             "cost_price",
-            "selling_price",
+            "average_cost_price",
             "reorder_level",
             "current_stock",
             "needs_reorder",
@@ -275,21 +173,19 @@ class ProductListSerializer(serializers.ModelSerializer):
         ]
 
     def get_needs_reorder(self, obj):
-        stock = getattr(obj, "stock", None)
-        if stock and hasattr(stock, "quantity"):
-            return stock.quantity <= obj.reorder_level
-        return False
+        """Determine if product stock is below reorder level"""
+        return obj.current_stock <= obj.reorder_level
 
 
-# ────────────────────────────────────────────────
-#  DETAIL serializer (single object view)
-# ────────────────────────────────────────────────
 class ProductDetailSerializer(serializers.ModelSerializer):
+    """
+    Detailed serializer for a single product view.
+    Includes all fields and nested related data.
+    """
+
     category = CategorySerializer(read_only=True)
-    brand = BrandSerializer(read_only=True)
-    supplier = SupplierSerializer(read_only=True)
-    current_stock = serializers.IntegerField(
-        source="stock.quantity", read_only=True, default=0
+    current_stock = serializers.DecimalField(
+        max_digits=12, decimal_places=3, source="current_stock", read_only=True
     )
     created_by = serializers.StringRelatedField(read_only=True)
 
@@ -304,26 +200,24 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "created_by",
             "is_discontinued",
             "discontinued_at",
-            "shop",  # usually set automatically
+            "shop",
         ]
 
 
-# ────────────────────────────────────────────────
-#  CREATE & UPDATE serializer
-# ────────────────────────────────────────────────
 class ProductWriteSerializer(serializers.ModelSerializer):
     """
-    Used for both create and update.
-    Note: stock quantity is only accepted on creation.
-    After creation, stock should be managed via purchase/sale/adjustment.
+    Serializer used for creating and updating products.
+    Handles initial stock creation (only on create).
     """
 
-    initial_stock = serializers.IntegerField(
+    initial_stock = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
         write_only=True,
         required=False,
         default=0,
         min_value=0,
-        help_text="Initial stock quantity (only used on creation)",
+        help_text="Initial stock quantity (only used when creating a new product)",
     )
 
     class Meta:
@@ -332,47 +226,46 @@ class ProductWriteSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "category",
-            "brand",
-            "supplier",
-            "compatible_vehicles",
+            "unit",
             "cost_price",
-            "selling_price",
             "reorder_level",
             "initial_stock",
         ]
 
     def create(self, validated_data):
-        initial_stock = validated_data.pop("initial_stock", 0)
+        """
+        Custom create logic:
+        - Sets shop and created_by from request user
+        - Initializes average_cost_price = cost_price
+        - Creates initial Stock record if provided
+        """
+        initial_stock = validated_data.pop("initial_stock", Decimal("0"))
         user = self.context["request"].user
 
         product = Product.objects.create(
             **validated_data,
             shop=user.shop if hasattr(user, "shop") else None,
-            created_by=user
+            created_by=user,
+            average_cost_price=validated_data[
+                "cost_price"
+            ],  # initial average = cost_price
         )
 
         if initial_stock > 0:
-            Stock.objects.create(
-                product=product,
-                quantity=initial_stock,
-                # you may want to create a StockTransaction here too
-            )
+            Stock.objects.create(product=product, quantity=initial_stock)
 
         return product
 
-    def update(self, instance, validated_data):
-        # Prevent changing stock quantity directly
-        validated_data.pop("initial_stock", None)
-        return super().update(instance, validated_data)
-
 
 # =============================================================================
-# Stock Serializer
+# STOCK SERIALIZERS
 # =============================================================================
+
+
 class StockTransactionSerializer(serializers.ModelSerializer):
     """
-    Serializer for stock transaction history (read-only for most users).
-    Includes product name and creator for easy display.
+    Read-only serializer for stock movement history.
+    Shows human-readable product and user information.
     """
 
     product_name = serializers.CharField(source="stock.product.name", read_only=True)
@@ -388,150 +281,76 @@ class StockTransactionSerializer(serializers.ModelSerializer):
             "type",
             "quantity_change",
             "reason",
-            "reference_id",
-            "created_by",
+            "reference",
             "created_by_name",
             "created_at",
             "product_id",
             "product_name",
         ]
-        read_only_fields = fields  # All read-only – transactions are immutable
+        read_only_fields = fields  # All fields are read-only (immutable history)
 
 
 class StockSerializer(serializers.HyperlinkedModelSerializer):
     """
-    Serializer for the Stock model. This serializer converts Stock instances to JSON
-    and handles incoming data for creating or updating Stock objects.
-    It represents the relationship between Stock and Product using hyperlinks.
+    Serializer for Stock model (current stock levels).
     """
 
-    # Hyperlink for the related Product
     product = serializers.HyperlinkedRelatedField(
-        queryset=Product.objects.all(),
-        view_name="product-detail",  # Ensure this URL pattern exists for product details
-        help_text="URL of the product associated with this stock.",
+        queryset=Product.objects.all(), view_name="product-detail"
     )
-
     low_stock = serializers.BooleanField(
-        source="is_low_stock", read_only=True
-    )  # Add property in Stock model
+        source="is_low_stock",
+        read_only=True,
+        help_text="True if current quantity is at or below reorder level",
+    )
 
     class Meta:
         model = Stock
-        fields = ["url", "id", "product", "quantity", "last_updated"]
+        fields = ["url", "id", "product", "quantity", "last_updated", "low_stock"]
         extra_kwargs = {
-            # URL for accessing stock details
             "url": {"view_name": "stock-detail"},
-            # URL for accessing product details
-            "product": {"view_name": "product-detail"},
         }
 
-    def validate_product(self, value):
-        """
-        Ensure the product stock is not duplicated and product exists in the database.
-        """
-        try:
-            # If updating, self.instance will be the Stock object being updated
-
-            if self.instance:
-                if self.instance.product == value:
-                    return value
-            # Check if the product already exists in stock
-            if Stock.objects.filter(product=value).exists():
-                raise serializers.ValidationError("Product stock already exists.")
-            Product.objects.get(id=value.id)
-        except Product.DoesNotExist:
-            raise serializers.ValidationError("Product does not exist in the database.")
-        return value
-
-    def validate_quantity(self, value):
-        """
-        Ensure the quantity is non-negative.
-        """
-        if value < 0:
-            raise serializers.ValidationError("Quantity cannot be negative.")
-        return value
-
-    def create(self, validated_data):
-        """
-        Override the create method to add custom logic when creating a stock entry.
-        """
-        stock = Stock.objects.create(**validated_data)
-        return stock
-
-    def update(self, instance, validated_data):
-        """
-        Override the update method to add custom logic when updating a stock entry.
-        """
-        instance.quantity = validated_data.get("quantity", instance.quantity)
-        instance.product = validated_data.get("product", instance.product)
-        instance.save()
-        return instance
-
 
 # =============================================================================
-# PUrchaseItem & Purchase Serializer
+# PURCHASE SERIALIZERS
 # =============================================================================
 
 
-class PurchaseItemSerializer(serializers.HyperlinkedModelSerializer):
+class PurchaseItemSerializer(serializers.ModelSerializer):
+    """
+    Serializer for individual purchase line items.
+    """
+
     product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
-
-    purchase = serializers.HyperlinkedRelatedField(
-        view_name="purchase-detail", read_only=True
-    )
-
-    brand = serializers.PrimaryKeyRelatedField(  # Explicitly add to use PK (accepts ID)
-        queryset=Brand.objects.all(), allow_null=True
-    )
-
     total_cost = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = PurchaseItem
-        fields = [
-            "url",
-            "product",
-            "quantity",
-            "brand",
-            "unit_cost_price",
-            "purchase",
-            "total_cost",
-        ]
-        extra_kwargs = {"url": {"view_name": "purchaseitem-detail"}}
+        fields = ["id", "product", "quantity", "unit_cost_price", "total_cost"]
 
     def get_total_cost(self, obj):
-        return (
-            obj.quantity * obj.unit_cost_price
-            if obj.unit_cost_price
-            else Decimal("0.00")
-        )
-
-    def validate(self, data):
-        if data["quantity"] <= 0:
-            raise serializers.ValidationError("Quantity must be greater than 0")
-        if data.get("unit_cost_price", 0) < 0:
-            raise serializers.ValidationError("Unit cost cannot be negative")
-        return data
+        """Calculate total cost for this purchase item"""
+        return obj.total_cost
 
 
-class PurchaseSerializer(serializers.HyperlinkedModelSerializer):
+class PurchaseSerializer(serializers.ModelSerializer):
+    """
+    Main serializer for Purchase (stock inflow).
+    Handles nested items and triggers stock update + average cost recalculation.
+    """
 
-    shop = serializers.PrimaryKeyRelatedField(  # Change to PK (accepts ID)
+    shop = serializers.PrimaryKeyRelatedField(
         queryset=Shop.objects.all(),
-        required=False,  # Make optional; view will auto-set for ShopAdmins
+        required=False,
+        help_text="Auto-set for ShopAdmin users",
     )
-    total_amount = serializers.DecimalField(
-        max_digits=14, decimal_places=2, read_only=True
-    )
-
-    supplier = serializers.PrimaryKeyRelatedField(  # Change to PK (accepts ID)
+    supplier = serializers.PrimaryKeyRelatedField(
         queryset=Supplier.objects.all(), allow_null=True
     )
-
     created_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
-    # Split: items_read for GET, items for POST
+    # Nested writable items (for POST) and readable items (for GET)
     items = PurchaseItemSerializer(many=True, write_only=True)
     items_read = PurchaseItemSerializer(source="items", many=True, read_only=True)
 
@@ -545,100 +364,121 @@ class PurchaseSerializer(serializers.HyperlinkedModelSerializer):
             "payment_status",
             "payment_method",
             "total_amount",
-            "created_by",  # optional: hide or set via user
+            "created_by",
             "items",
             "items_read",
         ]
         read_only_fields = ["id", "total_amount", "created_by"]
-        extra_kwargs = {
-            "url": {"view_name": "purchase-detail"},
-        }
 
     @transaction.atomic
     def create(self, validated_data):
+        """
+        Atomic creation of Purchase + Items + Stock update.
+        Ensures data consistency even if something fails midway.
+        """
         items_data = validated_data.pop("items")
         request = self.context["request"]
 
-        # Auto-set created_by and shop
+        # Auto-populate user and shop
         validated_data["created_by"] = request.user
-        if request.user.role == "ShopAdmin":
+        if hasattr(request.user, "shop") and request.user.shop:
             validated_data["shop"] = request.user.shop
 
         purchase = Purchase.objects.create(**validated_data)
 
+        # Create all purchase items
         for item_data in items_data:
             PurchaseItem.objects.create(purchase=purchase, **item_data)
+
+        # Update totals and stock (weighted average cost + quantity)
+        purchase.update_total()
+        purchase.update_stock(user=request.user)
 
         return purchase
 
 
 # =============================================================================
-# SaleItem & Sale Serializer
+# USAGE SERIALIZERS  (Daily Consumption)
 # =============================================================================
 
 
-class SaleItemSerializer(serializers.HyperlinkedModelSerializer):
+class UsageItemSerializer(serializers.ModelSerializer):
+    """
+    Serializer for individual usage/consumption items.
+    """
+
     product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
-    sale = serializers.HyperlinkedRelatedField(view_name="sale-detail", read_only=True)
-    unit_cost_price = serializers.DecimalField(
-        max_digits=14, decimal_places=2, read_only=True
-    )
 
     class Meta:
-        model = SaleItem
-        fields = [
-            "url",
-            "id",
-            "sale",
-            "product",
-            "quantity",
-            "unit_cost_price",
-            "unit_selling_price",
-        ]
+        model = UsageItem
+        fields = ["id", "product", "quantity", "unit_cost_price"]
 
 
-class SaleSerializer(serializers.HyperlinkedModelSerializer):
-    items = SaleItemSerializer(many=True)
-    total_amount = serializers.DecimalField(
-        max_digits=12, decimal_places=2, read_only=True
-    )
+class UsageSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Usage (stock outflow / daily consumption).
+    Critical for school usage cost reports.
+    Automatically snapshots average_cost_price and deducts stock.
+    """
+
     shop = serializers.PrimaryKeyRelatedField(
         queryset=Shop.objects.all(), required=False
     )
-    sold_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    recorded_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
+    # Nested writable items (POST) and readable items (GET)
+    items = UsageItemSerializer(many=True, write_only=True)
+    items_read = UsageItemSerializer(source="items", many=True, read_only=True)
+
+    total_cost = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+        help_text="Total usage cost (calculated from average cost at time of usage)",
+    )
 
     class Meta:
-        model = Sale
+        model = Usage
         fields = [
             "url",
             "id",
             "shop",
-            "total_amount",
-            "discount",
-            "payment_method",
-            "payment_status",
-            "sold_by",
-            "sale_date",
+            "usage_date",
+            "recorded_by",
+            "total_cost",
+            "note",
             "items",
+            "items_read",
         ]
+        extra_kwargs = {
+            "url": {"view_name": "usage-detail"},
+        }
 
     @transaction.atomic
     def create(self, validated_data):
+        """
+        Atomic creation of Usage + Items + Stock deduction.
+        Snapshots average_cost_price for accurate historical reporting.
+        """
         items_data = validated_data.pop("items")
-        request = self.context['request']
+        request = self.context["request"]
 
-        validated_data['sold_by'] = request.user
-        if hasattr(request.user, 'shop') and request.user.shop:
-            validated_data['shop'] = request.user.shop
-        else:
-            raise ValidationError("User must be associated with a shop to create a sale.")
+        # Auto-populate user and shop
+        validated_data["recorded_by"] = request.user
+        if hasattr(request.user, "shop") and request.user.shop:
+            validated_data["shop"] = request.user.shop
 
-        sale = Sale.objects.create(**validated_data, total_amount=Decimal('0.00'))
+        usage = Usage.objects.create(**validated_data)
 
+        # Create usage items with cost snapshot
         for item_data in items_data:
-            product = item_data['product']
-            item_data['unit_cost_price'] = product.average_cost_price or Decimal('0.00')  # <-- Snapshot average
-            SaleItem.objects.create(sale=sale, **item_data)
+            product = item_data["product"]
+            # Snapshot current average cost for accurate reporting
+            item_data["unit_cost_price"] = product.average_cost_price or Decimal("0.00")
+            UsageItem.objects.create(usage=usage, **item_data)
 
-        recalculate_sale_total(sale)
-        return sale
+        # Update total and deduct stock
+        usage.update_total()
+        usage.deduct_stock(user=request.user)
+
+        return usage
