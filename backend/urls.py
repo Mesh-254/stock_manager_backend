@@ -24,6 +24,12 @@ from rest_framework_simplejwt.views import (
 )
 
 from accounts.views import home_redirect_view
+# from  .admin_init import SchoolShopAdminSite
+from django.contrib import admin
+
+
+
+# admin.site = SchoolShopAdminSite(name='admin')
 
 
 urlpatterns = [
