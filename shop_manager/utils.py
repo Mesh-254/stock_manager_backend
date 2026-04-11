@@ -1,13 +1,13 @@
 """
 Stock Utility Functions
 
-Central helper for all stock movements (purchase, usage, adjustment).
-Ensures atomicity, prevents negative stock (except reversals), and always creates an audit trail via StockTransaction.
+Central helper for all stock movements with proper user-friendly error handling.
 """
 
-from django.db import transaction
-from django.core.exceptions import ValidationError
 from decimal import Decimal
+from django.db import transaction
+from django.core.exceptions import ValidationError as DjangoValidationError
+
 
 
 @transaction.atomic
@@ -20,10 +20,8 @@ def update_stock(
     user=None,
 ):
     """
-    Update stock quantity + create immutable audit transaction.
-
-    Raises ValidationError on negative stock (unless it's a reversal).
-    Uses select_for_update() to prevent race conditions in concurrent requests.
+    Update stock quantity + create audit transaction.
+    Raises user-friendly ValidationError when stock would go negative.
     """
     from .models import Stock, StockTransaction
 
@@ -34,21 +32,17 @@ def update_stock(
 
     new_quantity = stock.quantity + quantity_change
 
-    # Allow negative only for explicit reversals/deletes
-    is_reversal = any(
-        keyword in str(transaction_type).lower() + str(reason).lower()
-        for keyword in ["reversal", "delete", "deleted", "remove", "correction"]
-    )
-
-    if quantity_change < 0 and new_quantity < 0 and not is_reversal:
-        raise ValidationError(
+    # === PREVENT NEGATIVE STOCK ===
+    if quantity_change < 0 and new_quantity < 0:
+        raise DjangoValidationError(
             f"Cannot reduce stock below zero for {product.name}. "
-            f"Current: {stock.quantity}, attempted change: {quantity_change}"
+            f"Current stock: {stock.quantity:.3f}, attempted usage: {abs(quantity_change):.3f}"
         )
 
     stock.quantity = new_quantity
     stock.save(update_fields=["quantity"])
 
+    # Create audit trail
     StockTransaction.objects.create(
         stock=stock,
         type=transaction_type,
