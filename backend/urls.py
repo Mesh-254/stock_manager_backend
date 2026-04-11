@@ -15,6 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.shortcuts import redirect
 from django.urls import path, include
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -22,9 +23,13 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
+from accounts.views import home_redirect_view
+
 
 urlpatterns = [
+    path('', home_redirect_view, name='home'),
     path('admin/', admin.site.urls),
+    path('accounts/', include('accounts.urls')),
     path('accounts/', include('allauth.urls')),
 
     # JWT authentication endpoints
@@ -34,7 +39,7 @@ urlpatterns = [
 
 
     # Include the accounts app URLs
-    path('api/accounts/', include('accounts.urls')),
+    
 
     # Include the shop_manager app URLs
     path('api/shopmanager/', include('shop_manager.urls')),

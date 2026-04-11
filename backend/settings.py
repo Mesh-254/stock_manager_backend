@@ -33,12 +33,14 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 DEBUG = os.getenv("DEBUG")
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-
+CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "http://localhost:8000").split(",")
 
 # Application definition
 
 INSTALLED_APPS = [
+    
     "unfold",
+    "accounts",
     "unfold.contrib.filters",  # Optional but recommended
     "unfold.contrib.forms",  # Optional
     "unfold.contrib.inlines",
@@ -57,7 +59,7 @@ INSTALLED_APPS = [
     # cors headers
     "corsheaders",
     # Local apps
-    "accounts",
+    
     "shop_manager",
     "widget_tweaks",
 ]
@@ -86,7 +88,16 @@ ROOT_URLCONF = "backend.urls"
 # CORS_ALLOWED_ORIGINS
 CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
 
+# MUST be True when using withCredentials / cookies
+CORS_ALLOW_CREDENTIALS = True
+
 CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS", "False").lower() == "true"
+
+# Recommended for cross-origin session cookies in dev
+# SESSION_COOKIE_SAMESITE = 'None'      # or 'Lax'
+# CSRF_COOKIE_SAMESITE = 'None'
+# SESSION_COOKIE_SECURE = False         # dev only (http)
+# CSRF_COOKIE_SECURE = False
 
 TEMPLATES = [
     {
@@ -213,20 +224,32 @@ REST_FRAMEWORK = {
 AUTHENTICATION_BACKENDS = [
     "accounts.backends.CaseInsensitiveEmailBackend",  # custom backend for case-insensitive email login
     "allauth.account.auth_backends.AuthenticationBackend",
-    "django.contrib.auth.backends.ModelBackend",
+    "django.contrib.auth.backends.ModelBackend",  # ← keep this if you want to allow username login for admin or legacy reasons
 ]
 
-# Allauth settings
+# =============================================================================
+# AUTH & ALLAUTH - Fixed Redirect Loop + Admin Integration
+# =============================================================================
 SITE_ID = 1
 
-# =============================================================================
-# ALLAUTH (Fixed deprecation warnings)
-# =============================================================================
-ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]  # ← Modern way
-ACCOUNT_AUTHENTICATION_METHOD = "email"
-ACCOUNT_EMAIL_VERIFICATION = "optional"  # or 'mandatory'
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
+ACCOUNT_EMAIL_VERIFICATION = "optional"
+
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
+
+# Force admin to use allauth login
+LOGIN_URL = "admin:login"                    # Use Django's default admin login
+LOGIN_REDIRECT_URL = "admin:index"
+ACCOUNT_LOGOUT_REDIRECT_URL = "admin:login"
+
+
+# Important: Make sure allauth handles staff login properly
+ACCOUNT_AUTHENTICATION_METHOD = "email"   # Keep for compatibility
 
 
 # Google provider – secure env config (no DB SocialApp needed)
@@ -242,12 +265,10 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-# Redirect after social login
-LOGIN_REDIRECT_URL = "/"  # Frontend will handle role redirect
-ACCOUNT_LOGOUT_REDIRECT_URL = os.getenv(
-    "ACCOUNT_LOGOUT_REDIRECT_URL", "http://localhost:5173/"
-)
-
+# Use custom signup form to remove username field
+ACCOUNT_FORMS = {
+    "signup": "accounts.forms.CustomSignupForm",
+}
 
 # JWT Configuration
 from datetime import timedelta
@@ -268,8 +289,8 @@ SIMPLE_JWT = {
 # UNFOLD DASHBOARD (Updated to match current models)
 # =============================================================================
 UNFOLD = {
-    "SITE_TITLE": "Invetory Manager",
-    "SITE_HEADER": "Inventory Manager Dashboard",
+    "SITE_TITLE": "Inventory Manager",
+    "SITE_HEADER": "Manager Dashboard",
     "SITE_URL": "/",
     "SITE_SYMBOL": "school",
     "SHOW_HISTORY": True,
