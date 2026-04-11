@@ -1,4 +1,6 @@
+from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.contrib import messages
 from datetime import timedelta
 from rest_framework import viewsets
 from accounts.serializers import UserSerializer
@@ -16,106 +18,105 @@ from shop_manager.models import Shop
 import uuid
 from rest_framework.decorators import api_view, permission_classes
 import logging
-from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from accounts.permissions import CanManageShopUsers, IsSuperAdmin
 from accounts.tasks import send_verification_email,  send_password_reset_email
+from django.contrib.auth import login
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 
 logger = logging.getLogger(__name__)
 
 
-class LoginView(APIView):
-    """
-    Authenticate user and return JWT access + refresh tokens
-    """
 
+def home_redirect_view(request):
+    """Root URL (/) — redirect authenticated users to admin, others stay on frontend"""
+    if request.user.is_authenticated:
+        return redirect('admin:index')
+    return redirect('account_login')
+
+
+# =============================================================================
+# LOGIN VIEW - PURE API FOR REACT
+# =============================================================================
+class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email_input = request.data.get("email", "").strip().lower()
+        email = request.data.get("email", "").strip().lower()
         password = request.data.get("password")
 
-        if not email_input:
+        if not email:
             return Response({"detail": "Email is required."}, status=400)
 
         try:
-            user = User.objects.get(email=email_input)
+            user = User.objects.get(email=email)
         except User.DoesNotExist:
             return Response({"detail": "Invalid credentials."}, status=401)
 
         if not user.is_active:
-            return Response(
-                {"detail": "Account not verified. Check your email."}, status=401
-            )
+            return Response({"detail": "Account not verified. Check your email."}, status=401)
 
-        # If user has no password (Google signup), allow login without password
-        if not user.has_usable_password():
-            if password is not None:
-                return Response(
-                    {"detail": "This account uses Google login."}, status=400
-                )
-        else:
-            if not password or not user.check_password(password):
-                return Response({"detail": "Invalid credentials."}, status=401)
+        if not user.check_password(password):
+            return Response({"detail": "Invalid credentials."}, status=401)
 
-        # Generate JWT for SPA
+        # Create JWT tokens
         refresh = RefreshToken.for_user(user)
-        return Response(
-            {
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-                "user": {
-                    "id": user.id,
-                    "email": user.email,
-                    "full_name": user.full_name,
-                    "role": user.role,
-                    "shop_id": user.shop.id if user.shop else None,
-                },
-            }
-        )
+
+        # Set Django session for Unfold admin
+        user.backend = 'accounts.backends.CaseInsensitiveEmailBackend'
+        login(request, user)   # This sets the session cookie
+
+        # Dynamic redirect URL
+        if user.role in [UserRole.SUPER_ADMIN, UserRole.SHOP_ADMIN] or user.is_staff:
+            redirect_url = "/admin/"
+        else:
+            redirect_url = "/dashboard"
+
+        return Response({
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role,
+                "shop_id": user.shop.id if user.shop else None,
+                "is_staff": user.is_staff,
+            },
+            "redirect_url": redirect_url
+        }, status=200)
 
 
+# =============================================================================
+# LOGOUT
+# =============================================================================
+@method_decorator(csrf_exempt, name='dispatch')
 class LogoutView(APIView):
-    """
-    Blacklist refresh token to logout
-    """
-
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         try:
             refresh_token = request.data.get("refresh")
-            if not refresh_token:
-                return Response({"detail": "Refresh token is required."}, status=400)
-
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-
+            if refresh_token:
+                RefreshToken(refresh_token).blacklist()
             return Response({"detail": "Successfully logged out."}, status=205)
-        except TokenError:
-            return Response({"detail": "Invalid or expired refresh token."}, status=400)
-        except Exception as e:
-            logger.error(f"Logout error: {str(e)}")
+        except Exception:
             return Response({"detail": "Logout failed."}, status=500)
 
 
+# =============================================================================
+# REGISTER - API ONLY
+# =============================================================================
 class RegisterView(APIView):
-    """
-    Register a new user account.
-    - Creates inactive user
-    - Sends verification email
-    - Returns user data (not tokens — user must verify first)
-    """
-
     permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
-
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -127,46 +128,29 @@ class RegisterView(APIView):
                 full_name=validated_data["full_name"],
                 password=validated_data["password"],
                 phone_number=validated_data.get("phone_number"),
-                role=validated_data.get("role", UserRole.SHOP_ADMIN),
-                is_staff=True,  # Needed for admin access
+                role=validated_data.get("role", UserRole.SHOP_ADMIN)
             )
 
-            # Generate and save verification token
             verification_token = str(uuid.uuid4())
             user.verification_token = verification_token
             user.is_active = False
-            user.save(update_fields=["verification_token", "is_active"])
+            user.is_staff = True
+            user.save(update_fields=["verification_token", "is_active", "is_staff"])
 
-            # Auto-create shop for this new shop owner
-            shop = Shop.objects.create(
-                name=f"{user.full_name}'s Shop",  # or let them edit later
-                owner=user,
-                # add other defaults
-            )
+            shop = Shop.objects.create(name=f"{user.full_name}'s Shop", owner=user)
             user.shop = shop
             user.save()
 
-            # Send verification email (pass the raw token — the task will build the full URL)
             send_verification_email.delay(user.email, verification_token)
 
-            return Response(
-                {
-                    "message": "Registration successful. Please check your email to verify your account.",
-                    "user": UserSerializer(user, context={"request": request}).data,
-                },
-                status=status.HTTP_201_CREATED,
-            )
+            return Response({
+                "message": "Registration successful. Please check your email to verify your account.",
+                "user": UserSerializer(user, context={"request": request}).data,
+            }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             logger.exception("Registration error")
-            return Response(
-                {
-                    "detail": "An error occurred during registration.",
-                    "error_type": "server_error",
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
+            return Response({"detail": "Server error during registration."}, status=500)
 
 class VerifyEmailView(APIView):
     """
@@ -215,55 +199,123 @@ class VerifyEmailView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+# =============================================================================
+# PASSWORD RESET VIEWS (Production Ready)
+# =============================================================================
+
 class PasswordResetRequestView(APIView):
+    """
+    Senior Dev Implementation - Password Reset Request
+    POST /accounts/password-reset/
+    
+    Features:
+    - Case-insensitive email
+    - Anti-enumeration protection (always returns same message)
+    - Token is cryptographically secure UUID
+    - Token expires in exactly 60 minutes (matches Celery email)
+    - Fully async email via Celery
+    - Proper logging
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email = request.data.get("email")
+        email = request.data.get("email", "").strip().lower()
+
         if not email:
+            logger.warning("Password reset requested without email")
             return Response({"detail": "Email is required."}, status=400)
 
-        email = email.lower().strip()
+        # Find user (case-insensitive - matches your CaseInsensitiveEmailBackend)
         user = User.objects.filter(email=email).first()
 
         if user:
+            # Generate secure token
             reset_token = str(uuid.uuid4())
             user.reset_token = reset_token
             user.reset_token_expires = timezone.now() + timedelta(hours=1)
             user.save(update_fields=["reset_token", "reset_token_expires"])
 
+            # Build frontend reset URL using FRONTEND_URL from settings
             reset_url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password/{reset_token}"
+
+            # Send email asynchronously via Celery
             send_password_reset_email.delay(user.email, reset_url)
 
-        # Always return same message to prevent email enumeration
+            logger.info(f"Password reset link generated and queued for {user.email}")
+        else:
+            # Security: do NOT reveal that email doesn't exist
+            logger.info(f"Password reset attempted for non-existent email: {email}")
+
+        # Always return the same message (prevents user enumeration attacks)
         return Response({
             "message": "If an account with that email exists, a password reset link has been sent."
         }, status=200)
 
 
 class PasswordResetConfirmView(APIView):
+    """
+    Senior Dev Implementation - Set New Password
+    POST /accounts/password-reset-confirm/<uuid:token>/
+    
+    Features:
+    - Same password strength rules as RegisterSerializer
+    - Token expiration check
+    - Token is consumed (deleted) after successful use
+    - Full error handling and logging
+    - Returns user-friendly messages for frontend
+    """
     permission_classes = [AllowAny]
 
     def post(self, request, token):
         password = request.data.get("password")
+
         if not password:
             return Response({"detail": "Password is required."}, status=400)
 
         try:
+            # Find user by token
             user = User.objects.get(reset_token=token)
-            
-            if timezone.now() > user.reset_token_expires:
-                return Response({"detail": "Reset link has expired."}, status=400)
 
+            # Check expiration
+            if timezone.now() > user.reset_token_expires:
+                logger.warning(f"Expired reset token used: {token}")
+                return Response({"detail": "Reset link has expired. Please request a new one."}, status=400)
+
+            # === Password Strength Validation (mirrors RegisterSerializer) ===
+            if len(password) < 8:
+                return Response({"detail": "Password must be at least 8 characters long."}, status=400)
+
+            if not any(c.isupper() for c in password):
+                return Response({"detail": "Password must contain at least one uppercase letter."}, status=400)
+
+            if not any(c.islower() for c in password):
+                return Response({"detail": "Password must contain at least one lowercase letter."}, status=400)
+
+            if not any(c.isdigit() for c in password):
+                return Response({"detail": "Password must contain at least one number."}, status=400)
+
+            # Set new password (uses Django's secure hashing)
             user.set_password(password)
+
+            # Consume the token (security best practice)
             user.reset_token = None
             user.reset_token_expires = None
-            user.save()
 
-            return Response({"message": "Password reset successful."}, status=200)
+            user.save(update_fields=["password", "reset_token", "reset_token_expires"])
+
+            logger.info(f"Password successfully reset for user: {user.email}")
+
+            return Response({
+                "message": "Password has been reset successfully. You can now log in with your new password."
+            }, status=200)
 
         except User.DoesNotExist:
-            return Response({"detail": "Invalid reset link."}, status=400)
+            logger.warning(f"Invalid reset token attempted: {token}")
+            return Response({"detail": "Invalid or expired reset link."}, status=400)
+
+        except Exception as e:
+            logger.error(f"Unexpected error during password reset: {str(e)}", exc_info=True)
+            return Response({"detail": "An unexpected error occurred. Please try again."}, status=500)
 
 
 class AdminPasswordResetView(APIView):  # Admin-only override
@@ -281,19 +333,6 @@ class AdminPasswordResetView(APIView):  # Admin-only override
             return Response({"message": f"Password reset for {user.email}."})
         except User.DoesNotExist:
             return Response({"detail": "User not found."}, status=404)
-
-
-# ==================== User ViewSet ====================
-
-
-class UserViewSet(viewsets.ModelViewSet):
-    """
-    A viewset for viewing and editing user instances.
-    """
-
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated, CanManageShopUsers]
 
 
 @api_view(["POST"])
@@ -325,7 +364,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         if self.action == "create":
-            return UserCreateSerializer
+            return UserSerializer
         return UserSerializer
 
     def perform_create(self, serializer):
