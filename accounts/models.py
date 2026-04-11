@@ -130,6 +130,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Meta:
         indexes = [
             models.Index(fields=["shop"]),
+            models.Index(fields=['reset_token']),
             models.Index(fields=["role"]),
             models.Index(fields=["is_active"]),
             models.Index(fields=["last_login"]),
