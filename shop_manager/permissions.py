@@ -56,3 +56,26 @@ class IsInSameShop(permissions.BasePermission):
         if not user_shop:
             return False
         return getattr(obj, "shop", None) == user_shop
+    
+
+class IsInSameShopViaProduct(permissions.BasePermission):
+    """
+    Object-level permission for models that link to shop via product__shop
+    (e.g. Stock, StockTransaction).
+    """
+
+    def has_object_permission(self, request, view, obj):
+        if request.user.role == "SuperAdmin":
+            return True
+
+        user_shop = getattr(request.user, "shop", None)
+        if not user_shop:
+            return False
+
+        # Try to get shop through common patterns
+        if hasattr(obj, "product") and hasattr(obj.product, "shop"):
+            return obj.product.shop == user_shop
+        if hasattr(obj, "stock") and hasattr(obj.stock.product, "shop"):
+            return obj.stock.product.shop == user_shop
+
+        return False
