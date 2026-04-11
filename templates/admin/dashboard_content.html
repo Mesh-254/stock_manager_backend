@@ -1,0 +1,1033 @@
+{% load static %}
+
+{% load humanize %}
+
+{% comment %}
+
+IMPROVED DASHBOARD CONTENT — Partial template swapped by HTMX
+
+This template replaces the entire dashboard-content div when date filters change.
+
+ENHANCEMENTS:
+- Premium card styling with consistent shadows and borders
+- Smooth animations and hover effects
+- Mobile-optimized tables with responsive design
+- Improved accessibility with semantic HTML and ARIA labels
+- Better visual hierarchy and spacing
+- Dark mode support throughout
+- Enhanced Chart.js initialization with responsive sizing
+- Professional typography and spacing
+
+{% endcomment %}
+
+<div id="dashboard-content" class="space-y-6 px-4 py-8 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+
+  <!-- ===== KPI CARDS SECTION (Premium Design) ===== -->
+
+  <section aria-labelledby="kpi-heading" class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+
+    <h2 id="kpi-heading" class="sr-only">Key Performance Indicators</h2>
+
+    {% for card in cards %}
+
+    <a
+
+      href="{{ card.url }}"
+
+      class="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+
+    >
+
+      <!-- Subtle Gradient Background (Hover Effect) -->
+
+      <div class="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+
+      <!-- Card Content -->
+
+      <div class="relative z-10">
+
+        <!-- Label & Icon -->
+
+        <div class="flex items-start justify-between mb-4">
+
+          <p class="text-xs font-bold uppercase tracking-widest text-gray-600 dark:text-gray-400">
+
+            {{ card.title }}
+
+          </p>
+
+          <div class="rounded-lg bg-blue-100 p-2.5 text-blue-600 shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-md dark:bg-blue-900/30 dark:text-blue-300">
+
+            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+
+            </svg>
+
+          </div>
+
+        </div>
+
+        <!-- Large Value -->
+
+        <p class="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+
+          {{ card.value }}
+
+        </p>
+
+        <!-- Subtitle -->
+
+        {% if card.subtitle %}
+
+        <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+
+          {{ card.subtitle }}
+
+        </p>
+
+        {% endif %}
+
+      </div>
+
+      <!-- Bottom Accent Bar -->
+
+      <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-400 to-blue-600 opacity-0 transition-opacity duration-300 group-hover:opacity-100 dark:from-blue-500 dark:to-blue-400"></div>
+
+    </a>
+
+    {% endfor %}
+
+  </section>
+
+  <!-- ===== CHARTS SECTION (Responsive & Mobile-Optimized) ===== -->
+
+  {% if usage_trend or stock_by_category %}
+
+  <section aria-labelledby="charts-heading" class="grid gap-6 grid-cols-1 lg:grid-cols-2">
+
+    <h2 id="charts-heading" class="sr-only">Analytics Charts</h2>
+
+    
+
+    {% if usage_trend %}
+
+    <div class="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm transition-shadow duration-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900">
+
+      <div class="mb-5">
+
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+
+          Daily Usage Cost
+
+        </h3>
+
+        <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">
+
+          Last 30 days (KES)
+
+        </p>
+
+      </div>
+
+      <!-- Responsive Chart Container -->
+
+      <div class="relative w-full" style="height: 280px;">
+
+        <canvas id="usageTrendChart" aria-label="Line chart showing daily usage cost trend for the last 30 days" role="img"></canvas>
+
+      </div>
+
+    </div>
+
+    {% endif %}
+
+    {% if stock_by_category %}
+
+    <div class="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm transition-shadow duration-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900">
+
+      <div class="mb-5">
+
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+
+          Stock Value by Category
+
+        </h3>
+
+        <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">
+
+          Inventory valuation breakdown
+
+        </p>
+
+      </div>
+
+      <!-- Responsive Chart Container -->
+
+      <div class="relative w-full" style="height: 280px;">
+
+        <canvas id="stockByCategoryChart" aria-label="Pie chart showing inventory valuation by category" role="img"></canvas>
+
+      </div>
+
+    </div>
+
+    {% endif %}
+
+  </section>
+
+  {% endif %}
+
+  <!-- ===== RECENT ACTIVITY SECTION ===== -->
+
+  <div class="grid gap-6 grid-cols-1 lg:grid-cols-2">
+
+    <!-- TABLE 1: Recent Usages -->
+
+    {% if recent_usages %}
+
+    <div class="rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 overflow-hidden">
+
+      <div class="border-b border-gray-200 px-6 py-4 dark:border-slate-700">
+
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+
+          Recent Usage Entries
+
+        </h3>
+
+      </div>
+
+      <div class="overflow-x-auto">
+
+        <table class="w-full text-sm" role="region" aria-label="Recent usage entries table">
+
+          <thead class="border-b border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800">
+
+            <tr>
+
+              <th class="px-6 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Date</th>
+
+              <th class="px-6 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Recorded By</th>
+
+              <th class="px-6 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Cost</th>
+
+              <th class="px-6 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">Items</th>
+
+            </tr>
+
+          </thead>
+
+          <tbody class="divide-y divide-gray-200 dark:divide-slate-700">
+
+            {% for usage in recent_usages %}
+
+            <tr class="transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-slate-800">
+
+              <td class="whitespace-nowrap px-6 py-4 text-gray-900 dark:text-gray-200 font-medium">
+
+                {{ usage.usage_date|date:"M d, Y" }}
+
+              </td>
+
+              <td class="px-6 py-4 text-gray-700 dark:text-gray-300 max-w-xs truncate">
+
+                {{ usage.recorded_by.get_full_name|default:usage.recorded_by.email }}
+
+              </td>
+
+              <td class="whitespace-nowrap px-6 py-4 text-right font-semibold text-gray-900 dark:text-white">
+
+                KES {{ usage.total_cost|intcomma }}
+
+              </td>
+
+              <td class="whitespace-nowrap px-6 py-4 text-center text-gray-600 dark:text-gray-400 font-medium">
+
+                {{ usage.items.count }}
+
+              </td>
+
+            </tr>
+
+            {% empty %}
+
+            <tr>
+
+              <td colspan="4" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+
+                <p class="text-sm">No usage entries yet</p>
+
+              </td>
+
+            </tr>
+
+            {% endfor %}
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+      <div class="border-t border-gray-200 px-6 py-3 dark:border-slate-700">
+
+        <a href="{% url 'admin:shop_manager_usage_changelist' %}" class="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors duration-200 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+
+          View All Usages
+
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+
+          </svg>
+
+        </a>
+
+      </div>
+
+    </div>
+
+    {% endif %}
+
+    <!-- TABLE 2: Low Stock Alerts (Premium Cards) -->
+
+    {% if low_stock_alerts %}
+
+    <div class="rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 overflow-hidden">
+
+      <div class="border-b border-gray-200 px-6 py-4 dark:border-slate-700">
+
+        <h3 class="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+
+          <span class="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span>
+
+          Low Stock Alerts
+
+        </h3>
+
+      </div>
+
+      <div class="divide-y divide-gray-200 dark:divide-slate-700" role="region" aria-label="Low stock alerts list">
+
+        {% for stock in low_stock_alerts %}
+
+        <div class="flex items-center justify-between gap-4 border-l-4 border-amber-500 bg-gradient-to-r from-amber-50 to-transparent px-6 py-4 transition-colors duration-200 hover:from-amber-100 dark:border-amber-600 dark:from-amber-900/10 dark:hover:from-amber-900/20">
+
+          <div class="flex-1">
+
+            <p class="font-semibold text-gray-900 dark:text-white">
+
+              {{ stock.product.name }}
+
+            </p>
+
+            <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">
+
+              {{ stock.product.category.name }} • {{ stock.product.get_unit_display }}
+
+            </p>
+
+          </div>
+
+          <div class="ml-4 text-right">
+
+            <p class="text-lg font-bold text-amber-700 dark:text-amber-300">
+
+              {{ stock.quantity|floatformat:2 }}
+
+            </p>
+
+            <p class="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+
+              Reorder: {{ stock.product.reorder_level }}
+
+            </p>
+
+          </div>
+
+        </div>
+
+        {% empty %}
+
+        <div class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+
+          <p class="text-sm">
+
+            <span class="inline-block mr-2">✓</span>
+
+            All stock levels healthy
+
+          </p>
+
+        </div>
+
+        {% endfor %}
+
+      </div>
+
+      <div class="border-t border-gray-200 px-6 py-3 dark:border-slate-700">
+
+        <a href="{% url 'admin:shop_manager_stock_changelist' %}" class="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 transition-colors duration-200 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+
+          Manage Stock
+
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+
+          </svg>
+
+        </a>
+
+      </div>
+
+    </div>
+
+    {% endif %}
+
+  </div>
+
+  <!-- TABLE 3: Recent Stock Transactions -->
+
+  {% if recent_transactions %}
+
+  <div class="rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 overflow-hidden">
+
+    <div class="border-b border-gray-200 px-6 py-4 dark:border-slate-700">
+
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+
+        Recent Stock Transactions
+
+      </h3>
+
+    </div>
+
+    <div class="overflow-x-auto">
+
+      <table class="w-full text-sm" role="region" aria-label="Recent stock transactions table">
+
+        <thead class="border-b border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800">
+
+          <tr>
+
+            <th class="px-6 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Type</th>
+
+            <th class="px-6 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Product</th>
+
+            <th class="px-6 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Change</th>
+
+            <th class="px-6 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">By</th>
+
+            <th class="px-6 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Date</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody class="divide-y divide-gray-200 dark:divide-slate-700">
+
+          {% for txn in recent_transactions %}
+
+          <tr class="transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-slate-800">
+
+            <!-- Transaction Type Badge -->
+
+            <td class="whitespace-nowrap px-6 py-4">
+
+              <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-200
+
+                {% if txn.type == 'purchase' %}
+
+                  bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300
+
+                {% elif txn.type == 'usage' %}
+
+                  bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300
+
+                {% else %}
+
+                  bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-200
+
+                {% endif %}
+
+              ">
+
+                {{ txn.get_type_display }}
+
+              </span>
+
+            </td>
+
+            <!-- Product Name -->
+
+            <td class="px-6 py-4 text-gray-900 dark:text-gray-200 font-medium max-w-xs truncate">
+
+              {{ txn.stock.product.name }}
+
+            </td>
+
+            <!-- Quantity Change (Color coded) -->
+
+            <td class="whitespace-nowrap px-6 py-4 text-right font-semibold
+
+              {% if txn.quantity_change > 0 %}
+
+                text-green-600 dark:text-green-400
+
+              {% else %}
+
+                text-red-600 dark:text-red-400
+
+              {% endif %}
+
+            ">
+
+              {% if txn.quantity_change > 0 %}
+
+                +{{ txn.quantity_change|floatformat:3 }}
+
+              {% else %}
+
+                {{ txn.quantity_change|floatformat:3 }}
+
+              {% endif %}
+
+            </td>
+
+            <!-- Created By -->
+
+            <td class="px-6 py-4 text-gray-700 dark:text-gray-300 max-w-xs truncate">
+
+              {% if txn.created_by %}
+
+                {{ txn.created_by.get_full_name|default:txn.created_by.email }}
+
+              {% else %}
+
+                <span class="text-gray-500 dark:text-gray-400">System</span>
+
+              {% endif %}
+
+            </td>
+
+            <!-- Date -->
+
+            <td class="whitespace-nowrap px-6 py-4 text-gray-600 dark:text-gray-400 text-sm">
+
+              {{ txn.created_at|date:"M d, Y H:i" }}
+
+            </td>
+
+          </tr>
+
+          {% empty %}
+
+          <tr>
+
+            <td colspan="5" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+
+              <p class="text-sm">No transactions yet</p>
+
+            </td>
+
+          </tr>
+
+          {% endfor %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+  {% endif %}
+
+  <!-- ===== QUICK ACTIONS SECTION ===== -->
+
+  <section aria-labelledby="actions-heading" class="rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-6 shadow-sm dark:border-slate-700 dark:from-slate-900 dark:to-slate-900">
+
+    <h3 id="actions-heading" class="mb-6 text-lg font-semibold text-gray-900 dark:text-white">
+
+      Quick Actions
+
+    </h3>
+
+    <div class="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+
+      <!-- New Usage Action -->
+
+      <a
+
+        href="{% url 'add_usage_custom' %}"
+
+        class="group flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 transition-all duration-200 hover:border-blue-400 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-600 dark:hover:bg-blue-900/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+
+      >
+
+        <svg class="h-5 w-5 text-blue-600 transition-transform duration-200 group-hover:scale-110 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+
+        </svg>
+
+        <span class="font-medium text-gray-900 dark:text-white">New Usage</span>
+
+      </a>
+
+      <!-- New Purchase Action -->
+
+      <a
+
+        href="{% url 'add_purchase_custom' %}"
+
+        class="group flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 transition-all duration-200 hover:border-green-400 hover:bg-green-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-green-600 dark:hover:bg-green-900/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-500"
+
+      >
+
+        <svg class="h-5 w-5 text-green-600 transition-transform duration-200 group-hover:scale-110 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+
+        </svg>
+
+        <span class="font-medium text-gray-900 dark:text-white">New Purchase</span>
+
+      </a>
+
+      <!-- Stock Overview Action -->
+
+      <a
+
+        href="{% url 'admin:shop_manager_stock_changelist' %}"
+
+        class="group flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 transition-all duration-200 hover:border-amber-400 hover:bg-amber-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-amber-600 dark:hover:bg-amber-900/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
+
+      >
+
+        <svg class="h-5 w-5 text-amber-600 transition-transform duration-200 group-hover:scale-110 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+
+        </svg>
+
+        <span class="font-medium text-gray-900 dark:text-white">Stock Overview</span>
+
+      </a>
+
+      <!-- Reports Action -->
+
+      <a
+
+        href="{% url 'report_view' 'usage' %}"
+
+        class="group flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 transition-all duration-200 hover:border-purple-400 hover:bg-purple-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-purple-600 dark:hover:bg-purple-900/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-500"
+
+      >
+
+        <svg class="h-5 w-5 text-purple-600 transition-transform duration-200 group-hover:scale-110 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+
+        </svg>
+
+        <span class="font-medium text-gray-900 dark:text-white">Reports</span>
+
+      </a>
+
+    </div>
+
+  </section>
+
+</div>
+
+<!-- ===== CHART.JS INITIALIZATION ===== -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+
+<script>
+
+  (function() {
+
+    'use strict';
+
+    // Detect dark mode
+    const isDarkMode = () => document.documentElement.classList.contains('dark');
+
+    // Get theme-aware colors
+    const getChartColors = () => ({
+
+      primary: isDarkMode() ? '#93c5fd' : '#3b82f6',
+
+      text: isDarkMode() ? '#d1d5db' : '#374151',
+
+      gridLine: isDarkMode() ? 'rgba(148, 163, 184, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+
+      tooltipBg: 'rgba(0, 0, 0, 0.85)',
+
+    });
+
+    {% if usage_trend %}
+
+    (function() {
+
+      const usageTrendData = {{ usage_trend|safe }};
+
+      const usageTrendCtx = document.getElementById('usageTrendChart');
+
+      
+
+      if (usageTrendCtx && usageTrendData && usageTrendData.length > 0) {
+
+        const labels = usageTrendData.map(d => {
+
+          const date = new Date(d.usage_date + 'T00:00:00');
+
+          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        });
+
+        
+
+        const costs = usageTrendData.map(d => parseFloat(d.daily_cost || 0));
+
+        const colors = getChartColors();
+
+        
+
+        new Chart(usageTrendCtx, {
+
+          type: 'line',
+
+          data: {
+
+            labels: labels,
+
+            datasets: [{
+
+              label: 'Daily Usage Cost (KES)',
+
+              data: costs,
+
+              borderColor: colors.primary,
+
+              backgroundColor: isDarkMode() 
+
+                ? 'rgba(147, 197, 253, 0.1)' 
+
+                : 'rgba(59, 130, 246, 0.1)',
+
+              borderWidth: 2.5,
+
+              fill: true,
+
+              tension: 0.4,
+
+              pointBackgroundColor: colors.primary,
+
+              pointBorderColor: isDarkMode() ? '#0f172a' : '#fff',
+
+              pointBorderWidth: 2,
+
+              pointRadius: 4,
+
+              pointHoverRadius: 6,
+
+              pointHoverBorderWidth: 3,
+
+            }],
+
+          },
+
+          options: {
+
+            responsive: true,
+
+            maintainAspectRatio: false,
+
+            interaction: {
+
+              mode: 'index',
+
+              intersect: false,
+
+            },
+
+            plugins: {
+
+              legend: {
+
+                display: true,
+
+                position: 'top',
+
+                labels: {
+
+                  color: colors.text,
+
+                  usePointStyle: true,
+
+                  pointStyle: 'circle',
+
+                  padding: 15,
+
+                  font: {
+
+                    size: 13,
+
+                    weight: '600',
+
+                  },
+
+                },
+
+              },
+
+              tooltip: {
+
+                backgroundColor: colors.tooltipBg,
+
+                padding: 12,
+
+                titleFont: { size: 13, weight: 'bold' },
+
+                bodyFont: { size: 12 },
+
+                titleColor: '#fff',
+
+                bodyColor: '#fff',
+
+                cornerRadius: 8,
+
+                displayColors: false,
+
+                callbacks: {
+
+                  label: function(context) {
+
+                    const value = parseFloat(context.parsed.y).toLocaleString('en-US', {
+
+                      minimumFractionDigits: 2,
+
+                      maximumFractionDigits: 2,
+
+                    });
+
+                    return 'Cost: KES ' + value;
+
+                  }
+
+                }
+
+              },
+
+            },
+
+            scales: {
+
+              y: {
+
+                beginAtZero: true,
+
+                ticks: {
+
+                  color: colors.text,
+
+                  font: { size: 11 },
+
+                  callback: function(value) {
+
+                    return 'KES ' + value.toLocaleString('en-US');
+
+                  }
+
+                },
+
+                grid: {
+
+                  color: colors.gridLine,
+
+                  drawBorder: false,
+
+                },
+
+              },
+
+              x: {
+
+                ticks: {
+
+                  color: colors.text,
+
+                  font: { size: 11 },
+
+                },
+
+                grid: {
+
+                  display: false,
+
+                  drawBorder: false,
+
+                },
+
+              },
+
+            },
+
+          },
+
+        });
+
+      }
+
+    })();
+
+    {% endif %}
+
+    {% if stock_by_category %}
+
+    (function() {
+
+      const stockByCategoryData = {{ stock_by_category|safe }};
+
+      const stockByCategoryCtx = document.getElementById('stockByCategoryChart');
+
+      
+
+      if (stockByCategoryCtx && stockByCategoryData && stockByCategoryData.length > 0) {
+
+        const labels = stockByCategoryData.map(d => d.product__category__name || 'Unknown');
+
+        const values = stockByCategoryData.map(d => parseFloat(d.value || 0));
+
+        
+
+        const chartColors = [
+
+          '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+
+          '#8b5cf6', '#ec4899', '#14b8a6', '#f97316',
+
+          '#06b6d4', '#84cc16', '#f43f5e', '#0d9488',
+
+        ];
+
+        
+
+        const colors = getChartColors();
+
+        
+
+        new Chart(stockByCategoryCtx, {
+
+          type: 'doughnut',
+
+          data: {
+
+            labels: labels,
+
+            datasets: [{
+
+              data: values,
+
+              backgroundColor: chartColors.slice(0, labels.length),
+
+              borderColor: isDarkMode() ? '#0f172a' : '#fff',
+
+              borderWidth: 2,
+
+            }],
+
+          },
+
+          options: {
+
+            responsive: true,
+
+            maintainAspectRatio: false,
+
+            plugins: {
+
+              legend: {
+
+                position: 'right',
+
+                labels: {
+
+                  color: colors.text,
+
+                  padding: 15,
+
+                  usePointStyle: true,
+
+                  pointStyle: 'circle',
+
+                  font: {
+
+                    size: 11,
+
+                    weight: '600',
+
+                  },
+
+                },
+
+              },
+
+              tooltip: {
+
+                backgroundColor: colors.tooltipBg,
+
+                padding: 12,
+
+                titleFont: { size: 13, weight: 'bold' },
+
+                bodyFont: { size: 12 },
+
+                titleColor: '#fff',
+
+                bodyColor: '#fff',
+
+                cornerRadius: 8,
+
+                displayColors: true,
+
+                callbacks: {
+
+                  label: function(context) {
+
+                    const value = parseFloat(context.parsed).toLocaleString('en-US', {
+
+                      minimumFractionDigits: 2,
+
+                      maximumFractionDigits: 2,
+
+                    });
+
+                    return 'Value: KES ' + value;
+
+                  }
+
+                }
+
+              },
+
+            },
+
+          },
+
+        });
+
+      }
+
+    })();
+
+    {% endif %}
+
+  })();
+
+</script>
