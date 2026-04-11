@@ -341,6 +341,7 @@ class StockTransaction(models.Model):
         ("purchase", "Stock In - Purchase"),
         ("usage", "Stock Out - Usage"),
         ("adjustment", "Manual Adjustment"),
+        ("initial", "Initial Stock Setup"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -436,9 +437,15 @@ class Purchase(models.Model):
         return f"Purchase from {self.supplier} on {self.purchase_date}"
 
     def update_total(self):
-        """Recalculate and save total_amount from all purchase items"""
-        self.total_amount = sum(item.total_cost for item in self.items.all())
-        self.save(update_fields=["total_amount"])
+        """Recalculate and save total_amount from all purchase items.
+        Conditional save prevents infinite recursion with the post_save signal.
+        """
+        calculated_total = sum(
+            item.total_cost for item in self.items.all()
+        )
+        if self.total_amount != calculated_total:
+            self.total_amount = calculated_total
+            self.save(update_fields=["total_amount"])
 
     def update_stock(self, user=None):
         """
@@ -555,9 +562,15 @@ class Usage(models.Model):
         ]
 
     def update_total(self):
-        """Recalculate total_cost from all usage items"""
-        self.total_cost = sum(item.cost for item in self.items.all())
-        self.save(update_fields=["total_cost"])
+        """Recalculate total_cost from all usage items.
+        Conditional save prevents infinite recursion with the post_save signal.
+        """
+        calculated_total = sum(
+            item.cost for item in self.items.all()
+        )
+        if self.total_cost != calculated_total:
+            self.total_cost = calculated_total
+            self.save(update_fields=["total_cost"])
 
     def deduct_stock(self, user=None):
         """
@@ -585,16 +598,11 @@ class UsageItem(models.Model):
     usage = models.ForeignKey(Usage, on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.DecimalField(max_digits=12, decimal_places=3)
-    unit_cost_price = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        help_text="Snapshot of product's average_cost_price at time of usage",
-    )
-
+    
     @property
     def cost(self):
-        """Cost of this usage item (quantity × average cost at time of usage)"""
-        return self.quantity * self.unit_cost_price
+        """Cost of this usage item (quantity × current average cost)"""
+        return self.quantity * (self.product.average_cost_price or Decimal("0.00"))
 
     class Meta:
         unique_together = (

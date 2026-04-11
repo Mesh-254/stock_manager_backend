@@ -26,6 +26,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.storage import default_storage
 from rest_framework.exceptions import ValidationError
+from django.db import models
 
 from .models import (
     Shop,
@@ -219,11 +220,26 @@ class ProductViewSet(viewsets.ModelViewSet):
 class StockViewSet(viewsets.ReadOnlyModelViewSet):
     """Read-only current stock levels + manual adjustment action."""
 
-    queryset = Stock.objects.select_related(
-        "product", "product__category"
-    ).prefetch_related("transactions")
+    # queryset = Stock.objects.select_related(
+    #     "product", "product__category"
+    # ).prefetch_related("transactions")
     serializer_class = StockSerializer
     permission_classes = [IsAuthenticated, IsCashierOrHigher, IsInSameShop]
+
+    def get_queryset(self):
+        qs = Stock.objects.select_related(
+            "product", "product__category"
+        ).prefetch_related("transactions")
+
+        user = self.request.user
+        if user.role == "SuperAdmin":
+            return qs
+
+        if hasattr(user, "shop") and user.shop:
+            # Stock is linked via product__shop
+            return qs.filter(product__shop=user.shop)
+
+        return qs.none()
 
     @action(detail=True, methods=["post"], permission_classes=[IsShopAdmin])
     def adjust(self, request, pk=None):
@@ -250,12 +266,21 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
 class StockTransactionViewSet(viewsets.ReadOnlyModelViewSet):
     """Full audit trail of all stock movements."""
 
-    queryset = StockTransaction.objects.select_related("stock__product", "created_by")
+    # queryset = StockTransaction.objects.select_related("stock__product", "created_by")
     serializer_class = StockTransactionSerializer
     permission_classes = [IsAuthenticated, IsCashierOrHigher, IsInSameShop]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ["type", "stock__product__id"]
     ordering = ["-created_at"]
+
+    def get_queryset(self):
+        qs = StockTransaction.objects.select_related("stock__product", "created_by")
+        user = self.request.user
+        if user.role == "SuperAdmin":
+            return qs
+        if hasattr(user, "shop") and user.shop:
+            return qs.filter(stock__product__shop=user.shop)
+        return qs.none()
 
 
 # =============================================================================

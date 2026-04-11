@@ -3,7 +3,8 @@ from django.apps import AppConfig
 
 class ShopManagerConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'shop_manager'
+    name = "shop_manager"
 
     def ready(self):
-        import shop_manager.signals
+        # This is what was missing!
+        import shop_manager.signals   # connects all @receiver decorators
