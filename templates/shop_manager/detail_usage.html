@@ -1,0 +1,131 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}Usage Details | Shop Manager{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 py-8 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-4xl mx-auto">
+    <!-- Header with Back Button -->
+    <div class="mb-8 flex items-center justify-between">
+      <div>
+        <a href="{% url 'admin:shop_manager_usage_changelist' %}" 
+           class="inline-flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 transition-colors mb-4">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+          Back to Usage Records
+        </a>
+        <h1 class="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white">Usage Details</h1>
+      </div>
+      <a href="{% url 'edit_usage' usage.id %}" 
+         class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+        </svg>
+        Edit
+      </a>
+    </div>
+
+    <!-- Usage Info Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      <!-- Usage Date -->
+      <div class="bg-white dark:bg-slate-800 rounded-lg shadow border border-slate-200 dark:border-slate-700 p-4">
+        <p class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Usage Date</p>
+        <p class="text-lg font-semibold text-slate-900 dark:text-white">{{ usage.usage_date|date:"M d, Y" }}</p>
+      </div>
+
+      <!-- Total Cost -->
+      <div class="bg-white dark:bg-slate-800 rounded-lg shadow border border-slate-200 dark:border-slate-700 p-4">
+        <p class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Total Cost</p>
+        <p class="text-lg font-semibold text-slate-900 dark:text-white">{{ usage.shop.currency_code }} {{ usage.total_cost }}</p>
+      </div>
+
+      <!-- Recorded By -->
+      <div class="bg-white dark:bg-slate-800 rounded-lg shadow border border-slate-200 dark:border-slate-700 p-4">
+        <p class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Recorded By</p>
+        <p class="text-lg font-semibold text-slate-900 dark:text-white">{{ usage.recorded_by.get_full_name }}</p>
+      </div>
+    </div>
+
+    <!-- Items Section -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg dark:shadow-xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 mb-8">
+      <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-6">Usage Items</h2>
+
+      <!-- Desktop Table -->
+      <div class="hidden sm:block overflow-x-auto">
+        <table class="w-full">
+          <thead>
+            <tr class="border-b border-slate-200 dark:border-slate-700">
+              <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">Product</th>
+              <th class="px-4 py-3 text-center text-sm font-semibold text-slate-700 dark:text-slate-300">Unit</th>
+              <th class="px-4 py-3 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">Quantity Used</th>
+              <th class="px-4 py-3 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">Average Cost</th>
+              <th class="px-4 py-3 text-right text-sm font-semibold text-slate-700 dark:text-slate-300">Item Cost</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+            {% for item in usage.items.all %}
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                <td class="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white">{{ item.product.name }}</td>
+                <td class="px-4 py-3 text-center text-sm text-slate-600 dark:text-slate-400">{{ item.product.get_unit_display }}</td>
+                <td class="px-4 py-3 text-right text-sm text-slate-900 dark:text-white font-medium">{{ item.quantity }}</td>
+                <td class="px-4 py-3 text-right text-sm text-slate-900 dark:text-white font-medium">{{ usage.shop.currency_code }} {{ item.unit_cost_price }}</td>
+                <td class="px-4 py-3 text-right text-sm text-slate-900 dark:text-white font-bold">{{ usage.shop.currency_code }} {{ item.cost }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="5" class="px-4 py-8 text-center text-slate-600 dark:text-slate-400">No items in this usage record</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mobile Cards -->
+      <div class="sm:hidden space-y-4">
+        {% for item in usage.items.all %}
+          <div class="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-slate-50 dark:bg-slate-700/50">
+            <div class="flex justify-between items-start mb-3">
+              <h3 class="font-semibold text-slate-900 dark:text-white">{{ item.product.name }}</h3>
+              <span class="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 px-2 py-1 rounded">{{ item.product.get_unit_display }}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-4 text-sm mb-3">
+              <div>
+                <p class="text-slate-600 dark:text-slate-400 mb-1">Qty Used</p>
+                <p class="font-semibold text-slate-900 dark:text-white">{{ item.quantity }}</p>
+              </div>
+              <div>
+                <p class="text-slate-600 dark:text-slate-400 mb-1">Avg Cost</p>
+                <p class="font-semibold text-slate-900 dark:text-white">{{ usage.shop.currency_code }} {{ item.unit_cost_price }}</p>
+              </div>
+            </div>
+            <div class="pt-3 border-t border-slate-200 dark:border-slate-600 flex justify-between items-center">
+              <span class="text-slate-600 dark:text-slate-400 text-sm">Item Cost</span>
+              <span class="text-lg font-bold text-slate-900 dark:text-white">{{ usage.shop.currency_code }} {{ item.cost }}</span>
+            </div>
+          </div>
+        {% empty %}
+          <p class="text-center text-slate-600 dark:text-slate-400 py-8">No items in this usage record</p>
+        {% endfor %}
+      </div>
+
+      <!-- Grand Total -->
+      <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+        <div class="text-right">
+          <p class="text-sm text-slate-600 dark:text-slate-400 mb-2">Total Cost:</p>
+          <p class="text-4xl font-bold text-green-600 dark:text-green-400">{{ usage.shop.currency_code }} {{ usage.total_cost }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes Section (if present) -->
+    {% if usage.note %}
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow border border-slate-200 dark:border-slate-700 p-6 sm:p-8">
+        <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-3">Notes</h3>
+        <p class="text-slate-700 dark:text-slate-400 whitespace-pre-wrap">{{ usage.note }}</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

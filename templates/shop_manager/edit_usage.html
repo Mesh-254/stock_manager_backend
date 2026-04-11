@@ -1,0 +1,266 @@
+{% extends "admin/base.html" %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}Edit Usage | Shop Manager{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 dark:bg-slate-950 py-6 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto">
+
+        <!-- Back Navigation -->
+        <div class="mb-6">
+            <a href="{% url 'admin:shop_manager_usage_changelist' %}" 
+               class="inline-flex items-center gap-x-2 text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 font-medium text-sm transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Usage Records
+            </a>
+        </div>
+
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 bg-rose-100 dark:bg-rose-900/50 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0">
+                    📤
+                </div>
+                <div>
+                    <h1 class="text-3xl font-semibold text-slate-900 dark:text-white">Edit Usage Record</h1>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm">
+                        Usage on {{ usage.usage_date|date:"M d, Y" }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <form method="post" id="usage-form" class="space-y-8">
+            {% csrf_token %}
+
+            <!-- Usage Information -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm overflow-hidden">
+                <div class="px-6 pt-6 pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span class="text-sky-500">📋</span>
+                        Usage Information
+                    </h2>
+                </div>
+                
+                <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                            Usage Date <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.usage_date|add_class:"w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-2xl bg-white dark:bg-slate-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm transition-all" }}
+                        {% if form.usage_date.errors %}
+                            <p class="text-red-500 text-xs mt-1">{{ form.usage_date.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                            Notes <span class="text-slate-500">(optional)</span>
+                        </label>
+                        {{ form.note|add_class:"w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-2xl bg-white dark:bg-slate-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm transition-all" }}
+                        {% if form.note.errors %}
+                            <p class="text-red-500 text-xs mt-1">{{ form.note.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Usage Items -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm overflow-hidden">
+                <div class="px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 bg-rose-100 dark:bg-rose-900/50 rounded-2xl flex items-center justify-center text-xl">
+                            📤
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Usage Items</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Edit items used or issued</p>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="add-item-btn"
+                            class="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium px-5 py-2.5 rounded-2xl transition-all active:scale-[0.97]">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add Item
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[720px]">
+                        <thead class="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest">Product</th>
+                                <th class="px-6 py-4 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest w-28">Unit</th>
+                                <th class="px-6 py-4 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest w-32">Quantity Used</th>
+                                <th class="px-6 py-4 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest w-40">Avg Cost (KES)</th>
+                                <th class="px-6 py-4 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest w-40">Item Cost</th>
+                                <th class="w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-table-body" class="divide-y divide-slate-100 dark:divide-slate-700">
+                            {% for form in formset %}
+                                <tr class="usage-item-row group">
+                                    <td class="px-6 py-4">
+                                        {{ form.product|add_class:"w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-2xl bg-white dark:bg-slate-900 text-sm product-select focus:border-sky-500 focus:ring-1 focus:ring-sky-500" }}
+                                    </td>
+                                    <td class="px-6 py-4 text-center text-sm text-slate-600 dark:text-slate-400 product-unit">—</td>
+                                    <td class="px-6 py-4">
+                                        {{ form.quantity|add_class:"w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-2xl text-right text-sm quantity-input focus:border-sky-500 focus:ring-1 focus:ring-sky-500" }}
+                                    </td>
+                                    <td class="px-6 py-4 text-right text-sm text-slate-600 dark:text-slate-400 product-avg-cost">KES 0.00</td>
+                                    <td class="px-6 py-4 text-right font-semibold text-slate-700 dark:text-slate-300 item-total text-sm">KES 0.00</td>
+                                    <td class="px-3 py-4 text-center">
+                                        {% if not forloop.first or formset|length > 1 %}
+                                            <button type="button" class="remove-item-btn text-red-400 hover:text-red-600 p-2 opacity-70 hover:opacity-100 transition-all">✕</button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            {{ formset.management_form }}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="border-t border-slate-200 dark:border-slate-700 px-6 py-6 flex justify-end bg-slate-50 dark:bg-slate-800/50">
+                    <div class="text-right">
+                        <p class="text-xs font-medium text-slate-500 dark:text-slate-400 tracking-widest">TOTAL COST OF USAGE</p>
+                        <p id="grand-total" class="text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">KES 0.00</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row gap-3 pt-4">
+                <a href="{% url 'admin:shop_manager_usage_changelist' %}" 
+                   class="flex-1 sm:flex-none px-8 py-3.5 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-medium rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-center text-sm">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="flex-1 sm:flex-none bg-sky-600 hover:bg-sky-700 text-white font-medium py-3.5 rounded-2xl shadow-sm transition-all active:scale-[0.985] flex items-center justify-center gap-2 text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Update Usage
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const tableBody = document.getElementById('items-table-body');
+    const addBtn = document.getElementById('add-item-btn');
+    let rowIndex = {{ formset|length }};
+
+    const productsData = {
+        {% for product in products %}
+            '{{ product.id }}': {
+                avg_cost: parseFloat('{{ product.average_cost_price|default:0 }}'),
+                unit: '{{ product.get_unit_display|escapejs }}'
+            }{{ forloop.last|yesno:'' }},
+        {% endfor %}
+    };
+
+    function formatCurrency(amount) {
+        return 'KES ' + parseFloat(amount).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function updateRowCost(row) {
+        const productSelect = row.querySelector('.product-select');
+        const qtyInput = row.querySelector('.quantity-input');
+        const unitCell = row.querySelector('.product-unit');
+        const avgCostCell = row.querySelector('.product-avg-cost');
+        const itemTotalCell = row.querySelector('.item-total');
+
+        const productId = productSelect?.value;
+        const quantity = parseFloat(qtyInput?.value) || 0;
+
+        if (productId && productsData[productId]) {
+            const p = productsData[productId];
+            unitCell.textContent = p.unit || '—';
+            avgCostCell.textContent = formatCurrency(p.avg_cost);
+            itemTotalCell.textContent = formatCurrency(quantity * p.avg_cost);
+        } else {
+            unitCell.textContent = '—';
+            avgCostCell.textContent = 'KES 0.00';
+            itemTotalCell.textContent = 'KES 0.00';
+        }
+        updateGrandTotal();
+    }
+
+    function updateGrandTotal() {
+        let total = 0;
+        document.querySelectorAll('.usage-item-row').forEach(row => {
+            const txt = row.querySelector('.item-total').textContent.replace(/[^0-9.-]+/g, '');
+            total += parseFloat(txt) || 0;
+        });
+        document.getElementById('grand-total').textContent = formatCurrency(total);
+    }
+
+    function attachListenersToRow(row) {
+        row.querySelector('.product-select')?.addEventListener('change', () => updateRowCost(row));
+        row.querySelector('.quantity-input')?.addEventListener('input', () => updateRowCost(row));
+
+        row.querySelector('.remove-item-btn')?.addEventListener('click', () => {
+            if (document.querySelectorAll('.usage-item-row').length <= 1) {
+                alert("You must keep at least one item in the usage record.");
+                return;
+            }
+            row.remove();
+            updateGrandTotal();
+        });
+    }
+
+    // Add new row
+    addBtn.addEventListener('click', () => {
+        const newRow = document.createElement('tr');
+        newRow.className = 'usage-item-row group';
+
+        newRow.innerHTML = `
+            <td class="px-6 py-4"><select name="items-${rowIndex}-product" class="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-2xl bg-white dark:bg-slate-900 text-sm product-select focus:border-sky-500 focus:ring-1 focus:ring-sky-500" required>
+                <option value="">---------</option>
+                {% for product in products %}<option value="{{ product.id }}">{{ product.name }} ({{ product.unit }})</option>{% endfor %}
+            </select></td>
+            <td class="px-6 py-4 text-center text-sm text-slate-600 dark:text-slate-400 product-unit">—</td>
+            <td class="px-6 py-4"><input type="number" name="items-${rowIndex}-quantity" class="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-2xl text-right text-sm quantity-input focus:border-sky-500 focus:ring-1 focus:ring-sky-500" min="0.01" step="0.01" value="1" required></td>
+            <td class="px-6 py-4 text-right text-sm text-slate-600 dark:text-slate-400 product-avg-cost">KES 0.00</td>
+            <td class="px-6 py-4 text-right font-semibold text-slate-700 dark:text-slate-300 item-total text-sm">KES 0.00</td>
+            <td class="px-3 py-4 text-center"><button type="button" class="remove-item-btn text-red-400 hover:text-red-600 p-2 opacity-70 hover:opacity-100 transition-all">✕</button></td>
+        `;
+
+        tableBody.appendChild(newRow);
+        attachListenersToRow(newRow);
+        rowIndex++;
+        updateRowCost(newRow);
+    });
+
+    // Initialize existing rows
+    document.querySelectorAll('.usage-item-row').forEach(row => {
+        attachListenersToRow(row);
+        updateRowCost(row);
+    });
+
+    updateGrandTotal();
+
+    document.getElementById('usage-form').addEventListener('submit', function(e) {
+        if (document.querySelectorAll('.usage-item-row').length === 0) {
+            e.preventDefault();
+            alert('Please keep at least one item in the usage record.');
+        }
+    });
+});
+</script>
+
+<style>
+    input:focus, select:focus { box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15); }
+    .usage-item-row:hover { background-color: rgb(241 245 249); }
+    .dark .usage-item-row:hover { background-color: rgb(30 41 59); }
+</style>
+{% endblock %}
