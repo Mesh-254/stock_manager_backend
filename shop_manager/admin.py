@@ -2,20 +2,14 @@
 shop_manager/admin.py
 
 Django Admin Configuration for School Shop Inventory System
-================================================================
 
-Design Decisions:
-- Reuses the exact same role logic as permissions.py (string roles: "SuperAdmin", "ShopAdmin", "Cashier")
-- SuperAdmin → sees everything
-- ShopAdmin → full access BUT only to their own shop (multi-tenancy security)
-- Cashier → NO access to admin interface at all
-- Uses Unfold for modern UI
-- Object-level shop scoping + queryset filtering
-- Inline editing for PurchaseItem & UsageItem
-- Custom links to your beautiful template-based add/edit/detail views
-- Heavily documented for future maintainers
-
-This file completely solves the PermissionDenied (403) error you were seeing.
+Key Improvements:
+- Auto-selects the current logged-in user's shop when creating records.
+- Makes the 'shop' field read-only and pre-filled for ShopAdmin users.
+- SuperAdmin still sees the full dropdown (can choose any shop).
+- Prevents cross-shop data leaks in the admin interface.
+- Works with Unfold admin theme.
+- Heavily documented and consistent with your DRF permissions.
 """
 
 from django.contrib import admin
@@ -25,49 +19,34 @@ from unfold.admin import ModelAdmin
 from unfold.contrib.inlines.admin import TabularInline as UnfoldTabularInline
 
 from .models import (
-    Shop,
-    Category,
-    Supplier,
-    Product,
-    Stock,
-    StockTransaction,
-    Purchase,
-    PurchaseItem,
-    Usage,
-    UsageItem,
-    Expense,
-    OfflineSyncLog,
+    Shop, Category, Supplier, Product, Stock, StockTransaction,
+    Purchase, PurchaseItem, Usage, UsageItem, Expense, OfflineSyncLog,
 )
 
 
 # =============================================================================
-# BASE ADMIN CLASS - Reuses your DRF permission philosophy
+# BASE ADMIN CLASS WITH AUTO-SHOP & READ-ONLY BEHAVIOR
 # =============================================================================
 class ShopManagerAdmin(ModelAdmin):
     """
-    Base admin class used by almost all models.
-    Mirrors the permission classes in permissions.py:
-        - IsSuperAdmin → full access
-        - IsShopAdmin → full access (own shop only)
-        - Cashier     → blocked completely
+    Base admin class that:
+    1. Filters queryset to user's own shop (ShopAdmin)
+    2. Auto-selects and makes 'shop' field read-only for ShopAdmin
+    3. Gives full access to SuperAdmin
     """
 
     def has_module_permission(self, request):
-        """Controls whether the whole app appears in the admin sidebar."""
         if not request.user.is_authenticated:
             return False
-        # Cashier gets nothing
         return request.user.role in ("SuperAdmin", "ShopAdmin")
 
     def has_view_permission(self, request, obj=None):
-        """View permission (list + detail)."""
         if not self.has_module_permission(request):
             return False
         if request.user.role == "SuperAdmin":
             return True
         if obj is None:
-            return True  # allow changelist view
-        # ShopAdmin can only see objects belonging to their shop
+            return True
         return getattr(obj, "shop", None) == getattr(request.user, "shop", None)
 
     def has_change_permission(self, request, obj=None):
@@ -80,7 +59,6 @@ class ShopManagerAdmin(ModelAdmin):
         return self.has_module_permission(request)
 
     def get_queryset(self, request):
-        """Filter everything to the user's own shop (except SuperAdmin)."""
         qs = super().get_queryset(request)
         if request.user.role == "SuperAdmin":
             return qs
@@ -90,14 +68,44 @@ class ShopManagerAdmin(ModelAdmin):
         return qs.none()
 
     def save_model(self, request, obj, form, change):
-        """Auto-assign shop when ShopAdmin creates a new object."""
+        """Auto-assign shop for ShopAdmin when creating new objects."""
         if not change and request.user.role == "ShopAdmin" and hasattr(obj, "shop"):
             obj.shop = request.user.shop
         super().save_model(request, obj, form, change)
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """
+        Auto-select current user's shop and make it read-only for ShopAdmin.
+        SuperAdmin gets full dropdown.
+        """
+        if db_field.name == "shop":
+            user = request.user
+            user_shop = getattr(user, "shop", None)
+
+            if user.role == "ShopAdmin" and user_shop:
+                # Pre-fill with user's shop and disable the field
+                kwargs["queryset"] = Shop.objects.filter(id=user_shop.id)
+                kwargs["initial"] = user_shop.id
+                # Make it read-only in the form
+                kwargs["disabled"] = True
+                # Optional: You can also hide it completely if you prefer
+                # kwargs["widget"] = forms.HiddenInput()
+            elif user.role == "SuperAdmin":
+                # Full choice for SuperAdmin
+                kwargs["queryset"] = Shop.objects.all()
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def get_readonly_fields(self, request, obj=None):
+        """Make 'shop' field read-only in change view for ShopAdmin."""
+        readonly_fields = super().get_readonly_fields(request, obj)
+        if request.user.role == "ShopAdmin" and obj and hasattr(obj, "shop"):
+            readonly_fields = list(readonly_fields) + ["shop"]
+        return readonly_fields
+
 
 # =============================================================================
-# PURCHASE ADMIN (with inline items)
+# PURCHASE ADMIN + INLINE
 # =============================================================================
 class PurchaseItemInline(UnfoldTabularInline):
     model = PurchaseItem
@@ -108,8 +116,6 @@ class PurchaseItemInline(UnfoldTabularInline):
 
 @admin.register(Purchase)
 class PurchaseAdmin(ShopManagerAdmin):
-    """Purchase management in admin with links to your custom template views."""
-
     list_display = ("id_link", "shop", "supplier", "purchase_date", "total_amount_formatted", "payment_status", "edit_link")
     list_filter = ("payment_status", "payment_method", "purchase_date", "shop", "supplier")
     search_fields = ("supplier__name", "id")
@@ -140,7 +146,7 @@ class PurchaseItemAdmin(ShopManagerAdmin):
 
 
 # =============================================================================
-# USAGE ADMIN (formerly Sale) - Fixed legacy URLs
+# USAGE ADMIN
 # =============================================================================
 class UsageItemInline(UnfoldTabularInline):
     model = UsageItem
@@ -159,12 +165,12 @@ class UsageAdmin(ShopManagerAdmin):
     inlines = [UsageItemInline]
 
     def id_link(self, obj):
-        url = reverse("detail_usage", kwargs={"usage_id": obj.pk})   # ← Fixed
+        url = reverse("detail_usage", kwargs={"usage_id": obj.pk})
         return format_html('<a href="{}" class="font-medium">{}</a>', url, obj.pk)
     id_link.short_description = "ID"
 
     def edit_link(self, obj):
-        url = reverse("edit_usage", kwargs={"usage_id": obj.pk})     # ← Fixed
+        url = reverse("edit_usage", kwargs={"usage_id": obj.pk})
         return format_html('<a href="{}" class="text-blue-600">Edit</a>', url)
     edit_link.short_description = "Actions"
 
@@ -176,12 +182,10 @@ class UsageItemAdmin(ShopManagerAdmin):
 
 
 # =============================================================================
-# SHOP ADMIN (special handling)
+# SHOP ADMIN (special case)
 # =============================================================================
 @admin.register(Shop)
 class ShopAdmin(ShopManagerAdmin):
-    """Shop model - top level tenant. SuperAdmin sees all, ShopAdmin sees only own."""
-
     list_display = ("name", "owner", "country", "currency_code", "is_active", "created_at")
     list_filter = ("is_active", "country", "currency_code")
     search_fields = ("name", "description")
@@ -191,7 +195,6 @@ class ShopAdmin(ShopManagerAdmin):
         qs = super().get_queryset(request)
         if request.user.role == "SuperAdmin":
             return qs
-        # ShopAdmin can only manage their own shop
         user_shop = getattr(request.user, "shop", None)
         if user_shop:
             return qs.filter(id=user_shop.id)
@@ -199,13 +202,14 @@ class ShopAdmin(ShopManagerAdmin):
 
 
 # =============================================================================
-# REMAINING MODELS (simple but fully scoped)
+# OTHER MODELS (inherit auto-shop behavior)
 # =============================================================================
 @admin.register(Category)
 class CategoryAdmin(ShopManagerAdmin):
     list_display = ("name", "shop", "description")
     list_filter = ["shop"]
     search_fields = ["name"]
+    # Shop field will be auto-filled + read-only thanks to base class
 
 
 @admin.register(Supplier)
