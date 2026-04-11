@@ -69,7 +69,7 @@ class ShopViewSet(viewsets.ModelViewSet):
     queryset = Shop.objects.all()
     serializer_class = ShopSerializer
     parser_classes = (MultiPartParser, FormParser)
-    permission_classes = [IsAuthenticated, IsShopAdmin]
+    permission_classes = [IsAuthenticated, IsInSameShop]
 
     def perform_create(self, serializer):
         """Set current user as owner when creating a shop."""
