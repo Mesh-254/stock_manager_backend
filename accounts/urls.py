@@ -12,9 +12,13 @@ router.register(r'users', views.UserViewSet, basename='user')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('check-email/', views.check_email, name='check_email'),
-    path('register/', views.RegisterView.as_view(), name='register'),
-    path('login/', views.LoginView.as_view(), name='login'),
+   
+
+    path('signup/', views.RegisterView.as_view(), name='account_signup'),
+    path('login/',  views.LoginView.as_view(), name='account_login'),
+
+     path('check-email/', views.check_email, name='check_email'),
+     path('register/', views.RegisterView.as_view(), name='register'),  # kept for API compatibility
 
     path('verify-email/<uuid:token>/', views.VerifyEmailView.as_view(), name='verify_email'),
     path('resend-confirmation/', views.resend_confirmation_email, name='resend_confirmation'),
