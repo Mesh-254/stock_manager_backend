@@ -1,21 +1,17 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Stock Report – {{ title }}</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css"
-      rel="stylesheet"
-    />
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css" rel="stylesheet" />
     <style>
       * {
         box-sizing: border-box;
       }
 
       body {
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         color: #0f172a;
@@ -23,52 +19,35 @@
         line-height: 1.5;
       }
 
-      /* A4 Landscape Print Setup */
       @page {
         size: A4 landscape;
         margin: 18mm 20mm 22mm;
-        margin-top: 18mm;
       }
 
       @media print {
         * {
           box-shadow: none !important;
-          border-radius: 0 !important;
         }
-
         body {
           margin: 0;
           padding: 0;
           background: white;
           font-size: 10.5pt;
         }
-
-        section {
+        section, table {
           page-break-inside: avoid;
         }
-
-        table {
-          page-break-inside: avoid;
-        }
-
         thead {
           display: table-header-group;
         }
-
         tfoot {
           display: table-footer-group;
         }
-
-        tbody tr {
-          page-break-inside: avoid;
-        }
-
         .page-break {
           page-break-after: always;
         }
       }
 
-      /* Typography */
       h1 {
         font-size: 32px;
         font-weight: 800;
@@ -91,27 +70,12 @@
         color: #475569;
       }
 
-      /* Report Metadata */
       .report-meta {
         font-size: 11px;
         color: #64748b;
         margin-top: 0.5rem;
       }
 
-      /* Container */
-      .container {
-        max-width: 100%;
-        margin: 0;
-        padding: 0;
-      }
-
-      /* Header Section */
-      header {
-        margin-bottom: 1.5rem;
-        page-break-after: avoid;
-      }
-
-      /* Table Styling */
       table {
         width: 100%;
         border-collapse: collapse;
@@ -134,14 +98,6 @@
         border: 1px solid #e2e8f0;
       }
 
-      tbody tr {
-        border-bottom: 1px solid #e2e8f0;
-      }
-
-      tbody tr:nth-child(even) {
-        background-color: #f8fafc;
-      }
-
       td {
         padding: 0.625rem 0.5rem;
         font-size: 11px;
@@ -149,7 +105,10 @@
         border: 1px solid #e2e8f0;
       }
 
-      /* Numeric Alignment */
+      tbody tr:nth-child(even) {
+        background-color: #f8fafc;
+      }
+
       .text-right {
         text-align: right;
       }
@@ -162,7 +121,6 @@
         font-variant-numeric: tabular-nums;
       }
 
-      /* Product Avatar */
       .product-initial {
         display: inline-block;
         width: 24px;
@@ -178,7 +136,6 @@
         border-radius: 4px;
       }
 
-      /* Stock Status Colors */
       .status-ok {
         font-weight: 700;
         color: #166534;
@@ -194,18 +151,11 @@
         color: #991b1b;
       }
 
-      /* Value Styling */
       .value-positive {
         color: #16a34a;
         font-weight: 700;
       }
 
-      .value-negative {
-        color: #dc2626;
-        font-weight: 700;
-      }
-
-      /* Metrics Section */
       .metrics-table th {
         background-color: #f1f5f9;
         font-weight: 700;
@@ -217,7 +167,6 @@
         background: white;
       }
 
-      /* Empty State */
       .empty-state {
         text-align: center;
         padding: 1.5rem;
@@ -225,7 +174,6 @@
         font-size: 11px;
       }
 
-      /* Print Footer */
       .print-footer {
         margin-top: 2rem;
         padding-top: 0.75rem;
@@ -236,31 +184,28 @@
         page-break-after: avoid;
       }
 
-      /* Prevent orphans and widows */
-      p,
-      li {
-        orphans: 3;
-        widows: 3;
+      .container {
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
       }
 
-      /* Section spacing */
-      section {
+      header {
         margin-bottom: 1.5rem;
+        page-break-after: avoid;
       }
     </style>
   </head>
-
   <body>
     {% load humanize %}
-
     <div class="container">
-      <!-- Report Header -->
+      <!-- ===== Report Header ===== -->
       <header>
         <h1>Stock Report</h1>
         <p class="report-meta">As of {{ now|date:"F d, Y \a\t H:i" }}</p>
       </header>
 
-      <!-- Key Metrics -->
+      <!-- ===== Key Metrics ===== -->
       {% if metrics %}
       <section>
         <h2>Inventory Summary</h2>
@@ -278,38 +223,26 @@
               {% for item in metrics_items %}
                 {% cycle "<tr>" "" as rowstart silent %}
                 {{ rowstart }}
-
                 <td>{{ item.0 }}</td>
-                <td style="text-align: right; font-weight: 600;" class="tabular-nums">
-                  {{ item.1 }}
-                </td>
-
+                <td style="text-align: right; font-weight: 600" class="tabular-nums">{{ item.1 }}</td>
                 {% if forloop.counter|divisibleby:2 or forloop.last %}
-                  {% if forloop.last and forloop.counter|divisibleby:1 %}
-                    <!-- odd number → pad -->
-                    <td></td>
-                    <td></td>
+                  {% if forloop.last and not forloop.counter|divisibleby:2 %}
+                    <td></td><td></td>
                   {% endif %}
                   </tr>
                 {% endif %}
               {% empty %}
-                <tr>
-                  <td colspan="4" class="empty-state text-center py-8 text-slate-500 italic">
-                    No summary metrics available
-                  </td>
-                </tr>
+                <tr><td colspan="4" class="empty-state">No summary metrics available</td></tr>
               {% endfor %}
             {% else %}
-              <tr>
-                <td colspan="4" class="empty-state">No metrics available</td>
-              </tr>
+              <tr><td colspan="4" class="empty-state">No metrics available</td></tr>
             {% endif %}
           </tbody>
         </table>
       </section>
       {% endif %}
 
-      <!-- Stock Levels -->
+      <!-- ===== Stock Levels ===== -->
       {% if stock_items %}
       <section>
         <h2>Current Stock Levels</h2>
@@ -329,30 +262,16 @@
             {% for item in stock_items %}
             <tr>
               <td>
-                <span class="product-initial">{{ item.name|first|upper }}</span>
-                <strong>{{ item.name }}</strong>
+                <span class="product-initial">{{ item.name|first|upper }}</span><strong>{{ item.name }}</strong>
               </td>
               <td>{{ item.category.name|default:"—" }}</td>
-              <td style="text-align: right" class="tabular-nums">
-                {{ item.current_stock|intcomma }}
+              <td style="text-align: right" class="tabular-nums">{{ item.current_stock|intcomma }}</td>
+              <td style="text-align: right" class="tabular-nums">{{ item.available_quantity|intcomma|default:item.current_stock }}</td>
+              <td style="text-align: right" class="tabular-nums value-positive">KES {{ item.stock_value|floatformat:2|intcomma }}</td>
+              <td style="text-align: center; font-weight: 700; {% if item.current_stock <= 0 %}color: #991b1b{% elif item.current_stock <= item.reorder_level %}color: #a16207{% else %}color: #166534{% endif %}">
+                {% if item.current_stock <= 0 %}Critical{% elif item.current_stock <= item.reorder_level %}Low{% else %}OK{% endif %}
               </td>
-              <td style="text-align: right" class="tabular-nums">
-                {{ item.available_quantity|intcomma|default:item.current_stock }}
-              </td>
-              <td style="text-align: right" class="tabular-nums value-positive">
-                KES {{ item.stock_value|floatformat:2|intcomma }}
-              </td>
-              <td style="text-align: center; font-weight: 700;
-                {% if item.current_stock <= 0 %} class='status-critical'
-                {% elif item.current_stock <= item.reorder_level %} class='status-low'
-                {% else %} class='status-ok'{% endif %}">
-                {% if item.current_stock <= 0 %}Critical
-                {% elif item.current_stock <= item.reorder_level %}Low
-                {% else %}OK{% endif %}
-              </td>
-              <td style="text-align: right" class="tabular-nums">
-                {{ item.reorder_level|intcomma|default:"—" }}
-              </td>
+              <td style="text-align: right" class="tabular-nums">{{ item.reorder_level|intcomma|default:"—" }}</td>
             </tr>
             {% empty %}
             <tr>
@@ -364,7 +283,7 @@
       </section>
       {% endif %}
 
-      <!-- Low Stock Alert Items (optional section) -->
+      <!-- ===== Low Stock Alert Items ===== -->
       {% if low_stock_items %}
       <section class="page-break">
         <h2>Items Requiring Attention</h2>
@@ -382,19 +301,12 @@
             {% for item in low_stock_items %}
             <tr>
               <td>
-                <span class="product-initial">{{ item.name|first|upper }}</span>
-                <strong>{{ item.name }}</strong>
+                <span class="product-initial">{{ item.name|first|upper }}</span><strong>{{ item.name }}</strong>
               </td>
               <td>{{ item.category.name|default:"—" }}</td>
-              <td style="text-align: right" class="tabular-nums">
-                {{ item.current_stock|intcomma }}
-              </td>
-              <td style="text-align: right" class="tabular-nums">
-                {{ item.reorder_level|intcomma }}
-              </td>
-              <td style="text-align: right" class="tabular-nums value-positive">
-                KES {{ item.stock_value|floatformat:2|intcomma }}
-              </td>
+              <td style="text-align: right" class="tabular-nums">{{ item.current_stock|intcomma }}</td>
+              <td style="text-align: right" class="tabular-nums">{{ item.reorder_level|intcomma }}</td>
+              <td style="text-align: right" class="tabular-nums value-positive">KES {{ item.stock_value|floatformat:2|intcomma }}</td>
             </tr>
             {% empty %}
             <tr>
@@ -406,11 +318,9 @@
       </section>
       {% endif %}
 
-      <!-- Footer -->
+      <!-- ===== Footer ===== -->
       <div class="print-footer">
-        <p>
-          Stock Report – Confidential | Generated {{ "now"|date:"Y-m-d H:i" }}
-        </p>
+        <p>Stock Report – Confidential | Generated {{ "now"|date:"Y-m-d H:i" }}</p>
       </div>
     </div>
   </body>

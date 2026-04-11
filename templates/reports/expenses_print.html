@@ -1,34 +1,218 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Expenses Report – {{ title }}</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css"
-      rel="stylesheet"
-    />
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css" rel="stylesheet" />
     <style>
-      /* Reuse sales_print.html style block */
-      /* Add/override: */
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        color: #0f172a;
+        background: white;
+        line-height: 1.5;
+      }
+
+      @page {
+        size: A4 landscape;
+        margin: 18mm 20mm 22mm;
+      }
+
+      @media print {
+        * {
+          box-shadow: none !important;
+        }
+        body {
+          margin: 0;
+          padding: 0;
+          background: white;
+          font-size: 10.5pt;
+        }
+        section, table {
+          page-break-inside: avoid;
+        }
+        thead {
+          display: table-header-group;
+        }
+        tfoot {
+          display: table-footer-group;
+        }
+        .page-break {
+          page-break-after: always;
+        }
+      }
+
+      h1 {
+        font-size: 32px;
+        font-weight: 800;
+        letter-spacing: -0.025em;
+        margin: 0 0 0.25rem 0;
+        color: #0f172a;
+      }
+
+      h2 {
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        margin: 1.5rem 0 1rem 0;
+        color: #0f172a;
+        page-break-after: avoid;
+      }
+
+      p {
+        margin: 0;
+        color: #475569;
+      }
+
+      .report-meta {
+        font-size: 11px;
+        color: #64748b;
+        margin-top: 0.5rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5rem;
+      }
+
+      thead {
+        background-color: #f8fafc;
+        border-bottom: 2px solid #0f172a;
+      }
+
+      th {
+        padding: 0.75rem 0.5rem;
+        text-align: left;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        color: #334155;
+        text-transform: uppercase;
+        border: 1px solid #e2e8f0;
+      }
+
+      td {
+        padding: 0.625rem 0.5rem;
+        font-size: 11px;
+        color: #0f172a;
+        border: 1px solid #e2e8f0;
+      }
+
+      tbody tr:nth-child(even) {
+        background-color: #f8fafc;
+      }
+
+      .text-right {
+        text-align: right;
+      }
+
+      .text-center {
+        text-align: center;
+      }
+
+      .tabular-nums {
+        font-variant-numeric: tabular-nums;
+      }
+
+      .metrics-table th {
+        background-color: #f1f5f9;
+        font-weight: 700;
+        border: 1px solid #cbd5e1;
+      }
+
+      .metrics-table td {
+        font-weight: 600;
+        background: white;
+      }
+
       .expense-amount {
         color: #dc2626;
         font-weight: 700;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 1.5rem;
+        color: #64748b;
+        font-size: 11px;
+      }
+
+      .print-footer {
+        margin-top: 2rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #e2e8f0;
+        font-size: 10px;
+        color: #64748b;
+        text-align: center;
+        page-break-after: avoid;
+      }
+
+      .container {
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+
+      header {
+        margin-bottom: 1.5rem;
+        page-break-after: avoid;
       }
     </style>
   </head>
   <body>
     {% load humanize %}
-
     <div class="container">
+      <!-- ===== Report Header ===== -->
       <header>
         <h1>Expenses Report</h1>
         <p class="report-meta">Generated on {{ now|date:"F d, Y \a\t H:i" }}</p>
       </header>
 
-      <!-- Expense Metrics -->
-      {% if metrics %} ... same 2-column metrics table ... {% endif %}
+      <!-- ===== Key Metrics ===== -->
+      {% if metrics %}
+      <section>
+        <h2>Expense Summary</h2>
+        <table class="metrics-table">
+          <thead>
+            <tr>
+              <th style="width: 25%">Metric</th>
+              <th style="width: 25%; text-align: right">Value</th>
+              <th style="width: 25%">Metric</th>
+              <th style="width: 25%; text-align: right">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if metrics_items %}
+              {% for item in metrics_items %}
+                {% cycle "<tr>" "" as rowstart silent %}
+                {{ rowstart }}
+                <td>{{ item.0 }}</td>
+                <td style="text-align: right; font-weight: 600" class="tabular-nums">{{ item.1 }}</td>
+                {% if forloop.counter|divisibleby:2 or forloop.last %}
+                  {% if forloop.last and not forloop.counter|divisibleby:2 %}
+                    <td></td><td></td>
+                  {% endif %}
+                  </tr>
+                {% endif %}
+              {% empty %}
+                <tr><td colspan="4" class="empty-state">No summary metrics available</td></tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="4" class="empty-state">No metrics available</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </section>
+      {% endif %}
 
-      <!-- Expense Breakdown by Category -->
+      <!-- ===== Expenses by Category ===== -->
       {% if expense_by_category %}
       <section>
         <h2>Expenses by Category</h2>
@@ -45,15 +229,9 @@
             {% for cat in expense_by_category %}
             <tr>
               <td><strong>{{ cat.name }}</strong></td>
-              <td style="text-align: right" class="tabular-nums">
-                {{ cat.count|intcomma }}
-              </td>
-              <td style="text-align: right" class="tabular-nums expense-amount">
-                KES {{ cat.total|floatformat:2|intcomma }}
-              </td>
-              <td style="text-align: right" class="tabular-nums">
-                {{ cat.percentage|floatformat:1 }}%
-              </td>
+              <td style="text-align: right" class="tabular-nums">{{ cat.count|intcomma }}</td>
+              <td style="text-align: right" class="tabular-nums expense-amount">KES {{ cat.total|floatformat:2|intcomma }}</td>
+              <td style="text-align: right" class="tabular-nums">{{ cat.percentage|floatformat:1 }}%</td>
             </tr>
             {% empty %}
             <tr>
@@ -65,7 +243,7 @@
       </section>
       {% endif %}
 
-      <!-- Recent Expenses -->
+      <!-- ===== Recent Expenses ===== -->
       {% if recent_expenses %}
       <section class="page-break">
         <h2>Recent Expenses</h2>
@@ -83,21 +261,11 @@
           <tbody>
             {% for exp in recent_expenses %}
             <tr>
-              <td
-                style="
-                  text-align: center;
-                  font-family: monospace;
-                  font-weight: 700;
-                "
-              >
-                #{{ exp.id }}
-              </td>
+              <td style="text-align: center; font-family: monospace; font-weight: 700">#{{ exp.id }}</td>
               <td>{{ exp.expense_date|date:"d M Y" }}</td>
               <td>{{ exp.description|truncatewords:8 }}</td>
               <td>{{ exp.category.name|default:"—" }}</td>
-              <td style="text-align: right" class="tabular-nums expense-amount">
-                KES {{ exp.amount|floatformat:2|intcomma }}
-              </td>
+              <td style="text-align: right" class="tabular-nums expense-amount">KES {{ exp.amount|floatformat:2|intcomma }}</td>
               <td>{{ exp.paid_by.full_name|default:"—" }}</td>
             </tr>
             {% empty %}
@@ -110,11 +278,9 @@
       </section>
       {% endif %}
 
+      <!-- ===== Footer ===== -->
       <div class="print-footer">
-        <p>
-          Expenses Report – Confidential | Generated {{ "now"|date:"Y-m-d H:i"
-          }}
-        </p>
+        <p>Expenses Report – Confidential | Generated {{ "now"|date:"Y-m-d H:i" }}</p>
       </div>
     </div>
   </body>

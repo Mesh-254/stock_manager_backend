@@ -1,21 +1,17 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sales Report – {{ title }}</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css"
-      rel="stylesheet"
-    />
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css" rel="stylesheet" />
     <style>
       * {
         box-sizing: border-box;
       }
 
       body {
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         color: #0f172a;
@@ -23,52 +19,35 @@
         line-height: 1.5;
       }
 
-      /* A4 Landscape Print Setup */
       @page {
         size: A4 landscape;
         margin: 18mm 20mm 22mm;
-        margin-top: 18mm;
       }
 
       @media print {
         * {
           box-shadow: none !important;
-          border-radius: 0 !important;
         }
-
         body {
           margin: 0;
           padding: 0;
           background: white;
           font-size: 10.5pt;
         }
-
-        section {
+        section, table {
           page-break-inside: avoid;
         }
-
-        table {
-          page-break-inside: avoid;
-        }
-
         thead {
           display: table-header-group;
         }
-
         tfoot {
           display: table-footer-group;
         }
-
-        tbody tr {
-          page-break-inside: avoid;
-        }
-
         .page-break {
           page-break-after: always;
         }
       }
 
-      /* Typography */
       h1 {
         font-size: 32px;
         font-weight: 800;
@@ -91,27 +70,12 @@
         color: #475569;
       }
 
-      /* Report Metadata */
       .report-meta {
         font-size: 11px;
         color: #64748b;
         margin-top: 0.5rem;
       }
 
-      /* Container */
-      .container {
-        max-width: 100%;
-        margin: 0;
-        padding: 0;
-      }
-
-      /* Header Section */
-      header {
-        margin-bottom: 1.5rem;
-        page-break-after: avoid;
-      }
-
-      /* Table Styling */
       table {
         width: 100%;
         border-collapse: collapse;
@@ -134,14 +98,6 @@
         border: 1px solid #e2e8f0;
       }
 
-      tbody tr {
-        border-bottom: 1px solid #e2e8f0;
-      }
-
-      tbody tr:nth-child(even) {
-        background-color: #f8fafc;
-      }
-
       td {
         padding: 0.625rem 0.5rem;
         font-size: 11px;
@@ -149,7 +105,10 @@
         border: 1px solid #e2e8f0;
       }
 
-      /* Numeric Alignment */
+      tbody tr:nth-child(even) {
+        background-color: #f8fafc;
+      }
+
       .text-right {
         text-align: right;
       }
@@ -162,7 +121,6 @@
         font-variant-numeric: tabular-nums;
       }
 
-      /* Product Avatar */
       .product-initial {
         display: inline-block;
         width: 24px;
@@ -178,23 +136,6 @@
         border-radius: 4px;
       }
 
-      /* Status Indicators */
-      .status-paid {
-        font-weight: 700;
-        color: #166534;
-      }
-
-      .status-pending {
-        font-weight: 700;
-        color: #a16207;
-      }
-
-      .status-failed {
-        font-weight: 700;
-        color: #991b1b;
-      }
-
-      /* Metrics Section */
       .metrics-table th {
         background-color: #f1f5f9;
         font-weight: 700;
@@ -206,12 +147,16 @@
         background: white;
       }
 
-      .metrics-value {
+      .revenue {
+        color: #16a34a;
         font-weight: 700;
-        color: #0f172a;
       }
 
-      /* Empty State */
+      .profit {
+        color: #2563eb;
+        font-weight: 700;
+      }
+
       .empty-state {
         text-align: center;
         padding: 1.5rem;
@@ -219,7 +164,6 @@
         font-size: 11px;
       }
 
-      /* Print Footer */
       .print-footer {
         margin-top: 2rem;
         padding-top: 0.75rem;
@@ -230,40 +174,28 @@
         page-break-after: avoid;
       }
 
-      /* Prevent orphans and widows */
-      p,
-      li {
-        orphans: 3;
-        widows: 3;
+      .container {
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
       }
 
-      /* Section spacing */
-      section {
+      header {
         margin-bottom: 1.5rem;
-      }
-
-      /* Revenue/Profit Styling */
-      .revenue {
-        color: #16a34a;
-        font-weight: 700;
-      }
-
-      .profit {
-        color: #2563eb;
-        font-weight: 700;
+        page-break-after: avoid;
       }
     </style>
   </head>
   <body>
     {% load humanize %}
     <div class="container">
-      <!-- Report Header -->
+      <!-- ===== Report Header ===== -->
       <header>
         <h1>Sales Report</h1>
         <p class="report-meta">Generated on {{ now|date:"F d, Y \a\t H:i" }}</p>
       </header>
 
-      <!-- Key Metrics -->
+      <!-- ===== Key Metrics ===== -->
       {% if metrics %}
       <section>
         <h2>Key Metrics</h2>
@@ -276,42 +208,31 @@
               <th style="width: 25%; text-align: right">Value</th>
             </tr>
           </thead>
-       <tbody>
-{% if metrics_items %}
-    {% for item in metrics_items %}
-        {% cycle "<tr>" "" as rowstart silent %}
-            {{ rowstart }}
-
-            <td>{{ item.0 }}</td>
-            <td style="text-align: right; font-weight: 600;" class="tabular-nums">
-                {{ item.1 }}
-            </td>
-
-        {% if forloop.counter|divisibleby:2 or forloop.last %}
-            {% if forloop.last and forloop.counter|divisibleby:1 %}
-                <!-- odd number of items → pad with empty pair -->
-                <td></td>
-                <td></td>
+          <tbody>
+            {% if metrics_items %}
+              {% for item in metrics_items %}
+                {% cycle "<tr>" "" as rowstart silent %}
+                {{ rowstart }}
+                <td>{{ item.0 }}</td>
+                <td style="text-align: right; font-weight: 600" class="tabular-nums">{{ item.1 }}</td>
+                {% if forloop.counter|divisibleby:2 or forloop.last %}
+                  {% if forloop.last and not forloop.counter|divisibleby:2 %}
+                    <td></td><td></td>
+                  {% endif %}
+                  </tr>
+                {% endif %}
+              {% empty %}
+                <tr><td colspan="4" class="empty-state">No key metrics available for the selected period</td></tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="4" class="empty-state">No metrics</td></tr>
             {% endif %}
-            </tr>
-        {% endif %}
-    {% empty %}
-        <tr>
-            <td colspan="4" class="empty-state text-center py-8 text-slate-500 italic">
-                No key metrics available for the selected period
-            </td>
-        </tr>
-    {% endfor %}
-{% else %}
-    <!-- same empty state -->
-    <tr><td colspan="4" class="empty-state">No metrics</td></tr>
-{% endif %}
-</tbody>
+          </tbody>
         </table>
       </section>
       {% endif %}
 
-      <!-- Top Selling Products -->
+      <!-- ===== Top Selling Products ===== -->
       {% if top_products %}
       <section>
         <h2>Top Selling Products</h2>
@@ -329,19 +250,12 @@
             {% for item in top_products %}
             <tr>
               <td>
-                <span class="product-initial">{{ item.name|first|upper }}</span
-                ><strong>{{ item.name }}</strong>
+                <span class="product-initial">{{ item.name|first|upper }}</span><strong>{{ item.name }}</strong>
               </td>
               <td>{{ item.category.name|default:"—" }}</td>
-              <td style="text-align: right" class="tabular-nums">
-                {{ item.qty_sold|intcomma }}
-              </td>
-              <td style="text-align: right" class="tabular-nums revenue">
-                KES {{ item.revenue|floatformat:2|intcomma }}
-              </td>
-              <td style="text-align: right" class="tabular-nums profit">
-                KES {{ item.profit|floatformat:2|intcomma }}
-              </td>
+              <td style="text-align: right" class="tabular-nums">{{ item.qty_sold|intcomma }}</td>
+              <td style="text-align: right" class="tabular-nums revenue">KES {{ item.revenue|floatformat:2|intcomma }}</td>
+              <td style="text-align: right" class="tabular-nums profit">KES {{ item.profit|floatformat:2|intcomma }}</td>
             </tr>
             {% empty %}
             <tr>
@@ -353,7 +267,7 @@
       </section>
       {% endif %}
 
-      <!-- Recent Transactions -->
+      <!-- ===== Recent Transactions ===== -->
       {% if recent_sales %}
       <section class="page-break">
         <h2>Recent Transactions</h2>
@@ -362,7 +276,7 @@
             <tr>
               <th style="width: 12%; text-align: center">ID</th>
               <th style="width: 18%">Date & Time</th>
-              <th style="width: 22%">Sold By</th>
+              <th style="width: 22%">Recorded By</th>
               <th style="width: 20%; text-align: right">Amount</th>
               <th style="width: 15%; text-align: center">Status</th>
             </tr>
@@ -370,29 +284,14 @@
           <tbody>
             {% for sale in recent_sales %}
             <tr>
-              <td
-                style="
-                  text-align: center;
-                  font-family: monospace;
-                  font-weight: 700;
-                "
-              >
-                #{{ sale.id }}
-              </td>
+              <td style="text-align: center; font-family: monospace; font-weight: 700">#{{ sale.id }}</td>
               <td>{{ sale.sale_date|date:"d M Y, H:i" }}</td>
               <td>{{ sale.sold_by.full_name|default:"—" }}</td>
-              <td
-                style="text-align: right; font-weight: 700"
-                class="tabular-nums revenue"
-              >
-                KES {{ sale.total_amount|floatformat:2|intcomma }}
-              </td>
-              <td
-                style="text-align: center; font-weight: 700;{% if sale.payment_status == 'PAID' %} class='status-paid'{% elif sale.payment_status == 'PENDING' %} class='status-pending'{% else %} class='status-failed'{% endif %}"
-              >
-                {% if sale.payment_status == 'PAID' %} ✓ Paid {% elif
-                sale.payment_status == 'PENDING' %} ⏱ Pending {% else %} ✕
-                Failed {% endif %}
+              <td style="text-align: right; font-weight: 700" class="tabular-nums revenue">KES {{ sale.total_amount|floatformat:2|intcomma }}</td>
+              <td style="text-align: center; font-weight: 700">
+                {% if sale.payment_status == 'PAID' %}✓ Paid
+                {% elif sale.payment_status == 'PENDING' %}⏱ Pending
+                {% else %}✕ Failed{% endif %}
               </td>
             </tr>
             {% empty %}
@@ -405,11 +304,9 @@
       </section>
       {% endif %}
 
-      <!-- Footer -->
+      <!-- ===== Footer ===== -->
       <div class="print-footer">
-        <p>
-          Sales Report – Confidential | Generated {{ "now"|date:"Y-m-d H:i" }}
-        </p>
+        <p>Sales Report – Confidential | Generated {{ "now"|date:"Y-m-d H:i" }}</p>
       </div>
     </div>
   </body>
