@@ -12,12 +12,16 @@ Key Improvements:
 - Heavily documented and consistent with your DRF permissions.
 """
 
+from decimal import Decimal
+
 from django.contrib import admin
+from django import forms
 from django.urls import reverse
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin
 from unfold.contrib.inlines.admin import TabularInline as UnfoldTabularInline
-
+from django.db.models import Sum, Count, F, ExpressionWrapper, DecimalField
+from django.db.models.functions import NullIf
 from .models import (
     Shop, Category, Supplier, Product, Stock, StockTransaction,
     Purchase, PurchaseItem, Usage, UsageItem, Expense, OfflineSyncLog,
@@ -89,7 +93,7 @@ class ShopManagerAdmin(ModelAdmin):
                 # Make it read-only in the form
                 kwargs["disabled"] = True
                 # Optional: You can also hide it completely if you prefer
-                # kwargs["widget"] = forms.HiddenInput()
+                kwargs["widget"] = forms.HiddenInput()
             elif user.role == "SuperAdmin":
                 # Full choice for SuperAdmin
                 kwargs["queryset"] = Shop.objects.all()
@@ -103,7 +107,6 @@ class ShopManagerAdmin(ModelAdmin):
             readonly_fields = list(readonly_fields) + ["shop"]
         return readonly_fields
 
-
 # =============================================================================
 # PURCHASE ADMIN + INLINE
 # =============================================================================
@@ -112,32 +115,84 @@ class PurchaseItemInline(UnfoldTabularInline):
     extra = 0
     fields = ("product", "quantity", "unit_cost_price")
     can_delete = True
+    verbose_name = "Purchase Item"
+    verbose_name_plural = "Purchase Items"
 
 
 @admin.register(Purchase)
 class PurchaseAdmin(ShopManagerAdmin):
-    list_display = ("id_link", "shop", "supplier", "purchase_date", "total_amount_formatted", "payment_status", "edit_link")
-    list_filter = ("payment_status", "payment_method", "purchase_date", "shop", "supplier")
-    search_fields = ("supplier__name", "id")
+    """
+    Cleaned Purchase admin view:
+    - Removed ID and Shop columns (as requested)
+    - Added Product count + Total Quantity summary
+    - Better visual hierarchy with custom methods
+    - Kept essential information for quick scanning
+    """
+    list_display = (
+        "purchase_date",
+        "supplier",
+        "items_summary",           # New: Shows products and quantities
+        "total_quantity",          # New: Total items bought
+        "total_amount_formatted",
+        "payment_status",
+        "edit_link",
+    )
+    
+    list_filter = ("payment_status", "payment_method", "purchase_date", "supplier")
+    search_fields = ("supplier__name", "items__product__name", "note")
     date_hierarchy = "purchase_date"
     ordering = ("-purchase_date",)
+    
     readonly_fields = ("total_amount", "created_by")
     inlines = [PurchaseItemInline]
 
-    def id_link(self, obj):
-        url = reverse("detail_purchase", kwargs={"purchase_id": obj.pk})
-        return format_html('<a href="{}" class="font-medium">{}</a>', url, obj.pk)
-    id_link.short_description = "ID"
+    # ===================================================================
+    # Custom display methods
+    # ===================================================================
+
+    def items_summary(self, obj):
+        """Shows first few products with quantities in a nice format"""
+        items = obj.items.select_related("product")[:4]  # Limit for clean display
+        if not items:
+            return "—"
+        
+        summary = []
+        for item in items:
+            summary.append(f"{item.product.name} ({item.quantity})")
+        
+        result = ", ".join(summary)
+        if obj.items.count() > 4:
+            result += f" +{obj.items.count() - 4} more"
+        return result
+    items_summary.short_description = "Products Purchased"
+    items_summary.admin_order_field = "items__product__name"  # Optional
+
+    def total_quantity(self, obj):
+        """Total quantity of all items in this purchase"""
+        total = obj.items.aggregate(total=Sum("quantity"))["total"] or 0
+        return f"{total:,.0f}"
+    total_quantity.short_description = "Total Qty"
+    total_quantity.admin_order_field = "total_quantity"  # Will need annotation if sorting required
+
+    def total_amount_formatted(self, obj):
+        return f"KES {obj.total_amount:,.2f}" if obj.total_amount else "KES 0.00"
+    total_amount_formatted.short_description = "Total Amount"
 
     def edit_link(self, obj):
         url = reverse("edit_purchase", kwargs={"purchase_id": obj.pk})
-        return format_html('<a href="{}" class="text-blue-600">Edit</a>', url)
+        return format_html(
+            '<a href="{}" class="text-sky-600 hover:text-sky-700 font-medium">Edit</a>', 
+            url
+        )
     edit_link.short_description = "Actions"
 
-    def total_amount_formatted(self, obj):
-        return f"{obj.total_amount:,.2f}" if obj.total_amount else "0.00"
-    total_amount_formatted.short_description = "Total Amount"
-
+    # Optional: Add annotation for better performance on total_quantity sorting
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Annotate total quantity for better performance
+        return qs.annotate(
+            total_quantity=Sum("items__quantity")
+        )
 
 @admin.register(PurchaseItem)
 class PurchaseItemAdmin(ShopManagerAdmin):
@@ -146,41 +201,123 @@ class PurchaseItemAdmin(ShopManagerAdmin):
 
 
 # =============================================================================
-# USAGE ADMIN
+# USAGE ADMIN (Improved for Logistics)
 # =============================================================================
 class UsageItemInline(UnfoldTabularInline):
     model = UsageItem
     extra = 0
     fields = ("product", "quantity")
     can_delete = True
+    verbose_name = "Usage Item"
+    verbose_name_plural = "Usage Items"
 
 
 @admin.register(Usage)
 class UsageAdmin(ShopManagerAdmin):
-    list_display = ("id_link", "usage_date", "recorded_by", "total_cost", "edit_link")
-    list_filter = ("usage_date", "shop")
-    search_fields = ("id",)
+    """
+    Enhanced Usage admin for logistics visibility:
+    - Shows key operational information at a glance
+    - Focuses on cost control, consumption volume, and usage patterns
+    - Clean, professional layout with important metrics first
+    """
+    list_display = (
+        "usage_date",
+        "recorded_by",
+        "items_summary",           # Products consumed + quantities
+        "total_quantity",          # Total units used (very important for logistics)
+        "total_cost_formatted",    # Cost impact
+        "average_cost_per_unit",   # New: Efficiency metric
+        "edit_link",
+    )
+
+    list_filter = ("usage_date", "recorded_by")
+    search_fields = ("note", "recorded_by__full_name", "items__product__name")
     date_hierarchy = "usage_date"
+    ordering = ("-usage_date",)
+
     readonly_fields = ("total_cost",)
     inlines = [UsageItemInline]
 
-    def id_link(self, obj):
-        url = reverse("detail_usage", kwargs={"usage_id": obj.pk})
-        return format_html('<a href="{}" class="font-medium">{}</a>', url, obj.pk)
-    id_link.short_description = "ID"
+    # ===================================================================
+    # Custom display methods for logistics insights
+    # ===================================================================
+
+    def items_summary(self, obj):
+        """Clean summary of consumed products with quantities"""
+        items = obj.items.select_related("product")[:5]
+        if not items:
+            return "—"
+
+        summary = [f"{item.product.name} ({item.quantity})" for item in items]
+        result = ", ".join(summary)
+
+        if obj.items.count() > 5:
+            result += f" +{obj.items.count() - 5} more"
+
+        return result
+    items_summary.short_description = "Items Used"
+    items_summary.admin_order_field = "items__product__name"
+
+    def total_quantity(self, obj):
+        """Total number of units consumed - critical for logistics & inventory planning"""
+        total = obj.items.aggregate(total=Sum("quantity"))["total"] or Decimal("0")
+        return f"{total:,.0f}"
+    total_quantity.short_description = "Total Qty Used"
+    total_quantity.admin_order_field = "total_quantity"
+
+    def total_cost_formatted(self, obj):
+        """Total cost of usage"""
+        return f"KES {obj.total_cost:,.0f}" if obj.total_cost else "KES 0"
+    total_cost_formatted.short_description = "Total Cost"
+    total_cost_formatted.admin_order_field = "total_cost"
+
+    def average_cost_per_unit(self, obj):
+        """Key logistics metric: Average cost per unit consumed"""
+        total_qty = obj.items.aggregate(total=Sum("quantity"))["total"] or Decimal("0")
+        if total_qty == 0:
+            return "—"
+        
+        avg_cost = obj.total_cost / total_qty
+        return f"KES {avg_cost:,.2f}"
+    average_cost_per_unit.short_description = "Avg Cost/Unit"
+    average_cost_per_unit.admin_order_field = "avg_cost_per_unit"   # Will be annotated
 
     def edit_link(self, obj):
         url = reverse("edit_usage", kwargs={"usage_id": obj.pk})
-        return format_html('<a href="{}" class="text-blue-600">Edit</a>', url)
+        return format_html(
+            '<a href="{}" class="text-sky-600 hover:text-sky-700 font-medium">Edit</a>', 
+            url
+        )
     edit_link.short_description = "Actions"
+
+    # ===================================================================
+    # Optimize queryset for performance + annotations
+    # ===================================================================
+    def get_queryset(self, request):
+        qs = super().get_queryset(request).select_related(
+            "recorded_by"
+        ).prefetch_related("items__product")
+
+        # Annotate important metrics for better performance and sorting
+        return qs.annotate(
+            total_quantity=Sum("items__quantity"),
+            total_items=Count("items"),
+            avg_cost_per_unit=ExpressionWrapper(
+                F("total_cost") / NullIf(Sum("items__quantity"), 0),
+                output_field=DecimalField()
+            )
+        )
 
 
 @admin.register(UsageItem)
 class UsageItemAdmin(ShopManagerAdmin):
-    list_display = ("usage", "product", "quantity", "unit_cost_price", "cost")
-    search_fields = ("product__name",)
+    """Keep UsageItem admin simple and clean"""
+    list_display = ("usage", "product", "quantity", "cost")
+    list_filter = ("usage__usage_date",)
+    search_fields = ("product__name", "usage__recorded_by__full_name")
+    ordering = ("-usage__usage_date",)
 
-
+    
 # =============================================================================
 # SHOP ADMIN (special case)
 # =============================================================================
@@ -218,24 +355,129 @@ class SupplierAdmin(ShopManagerAdmin):
     list_filter = ["shop"]
     search_fields = ["name"]
 
-
 @admin.register(Product)
 class ProductAdmin(ShopManagerAdmin):
-    list_display = ("name", "category", "unit", "cost_price", "average_cost_price",
-                    "reorder_level", "current_stock", "is_active")
+    """
+    Product management in admin with smart auto-handling:
+    - average_cost_price is read-only and auto-managed
+    - created_by is automatically set to current user and made read-only
+    - Fixed KeyError by properly including fields in the form
+    """
+
+    list_display = (
+        "name", 
+        "category", 
+        "unit", 
+        "cost_price", 
+        "average_cost_price", 
+        "reorder_level", 
+        "current_stock", 
+        "is_active",
+        "created_by",
+    )
     list_filter = ["shop", "category", "is_active", "is_discontinued"]
     search_fields = ["name", "description"]
 
+    # Explicitly define which fields to show + readonly ones
+    fields = (
+        "shop",
+        "name",
+        "description",
+        "category",
+        "unit",
+        "cost_price",
+        "average_cost_price",
+        "reorder_level",
+        "is_active",
+        "is_discontinued",
+        "created_by",
+        "created_at",
+        "updated_at",
+    )
+
+    readonly_fields = ("average_cost_price", "created_by", "current_stock", "created_at", "updated_at")
+
     def current_stock(self, obj):
-        return obj.current_stock
+        return obj.current_stock or "0.000"
     current_stock.short_description = "Current Stock"
+
+    def get_form(self, request, obj=None, **kwargs):
+        """
+        Customize form to auto-set and disable 'created_by' and make 'average_cost_price' read-only.
+        """
+        form = super().get_form(request, obj, **kwargs)
+
+        # For new products (create)
+        if not obj:
+            # Auto-set created_by to current user
+            if 'created_by' in form.base_fields:
+                form.base_fields['created_by'].initial = request.user
+                form.base_fields['created_by'].disabled = True
+
+            # Ensure average_cost_price starts as cost_price
+            if 'cost_price' in form.base_fields and 'average_cost_price' in form.base_fields:
+                form.base_fields['average_cost_price'].initial = form.base_fields['cost_price'].initial or Decimal("0.00")
+                form.base_fields['average_cost_price'].disabled = True
+
+        # For editing existing products
+        else:
+            if 'created_by' in form.base_fields:
+                form.base_fields['created_by'].disabled = True
+            if 'average_cost_price' in form.base_fields:
+                form.base_fields['average_cost_price'].disabled = True
+
+        return form
+
+    def save_model(self, request, obj, form, change):
+        """
+        Final safety net: ensure created_by and average_cost_price are correctly set.
+        """
+        if not change:  # Creating new product
+            if not getattr(obj, 'created_by', None):
+                obj.created_by = request.user
+
+            # Auto-set average_cost_price = cost_price on first creation
+            if not obj.average_cost_price or obj.average_cost_price == Decimal("0.00"):
+                obj.average_cost_price = obj.cost_price
+
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(Stock)
 class StockAdmin(ShopManagerAdmin):
     list_display = ("product", "quantity", "is_low_stock", "last_updated")
     readonly_fields = ("quantity", "last_updated")
+    search_fields = ["product__name"]
 
+    def get_queryset(self, request):
+        """Filter stock by user's shop via product__shop"""
+        qs = Stock.objects.select_related("product", "product__category")
+        if request.user.role == "SuperAdmin":
+            return qs
+        user_shop = getattr(request.user, "shop", None)
+        if user_shop:
+            return qs.filter(product__shop=user_shop)
+        return qs.none()
+
+    # === Proper object-level permissions for Stock ===
+    def has_view_permission(self, request, obj=None):
+        if request.user.role == "SuperAdmin":
+            return True
+        if not obj:
+            return True  # List view already filtered by get_queryset
+
+        user_shop = getattr(request.user, "shop", None)
+        if not user_shop:
+            return False
+
+        # Stock links to shop via product
+        return getattr(obj.product, "shop", None) == user_shop
+
+    def has_change_permission(self, request, obj=None):
+        return self.has_view_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return self.has_view_permission(request, obj)
 
 @admin.register(StockTransaction)
 class StockTransactionAdmin(ShopManagerAdmin):
@@ -243,12 +485,73 @@ class StockTransactionAdmin(ShopManagerAdmin):
     list_filter = ["type", "stock__product__shop"]
     ordering = ["-created_at"]
     readonly_fields = ("created_at",)
+    search_fields = ["stock__product__name"]
+
+    def get_queryset(self, request):
+        qs = StockTransaction.objects.select_related("stock__product", "created_by")
+        if request.user.role == "SuperAdmin":
+            return qs
+        user_shop = getattr(request.user, "shop", None)
+        if user_shop:
+            return qs.filter(stock__product__shop=user_shop)
+        return qs.none()
+
+    def has_view_permission(self, request, obj=None):
+        if request.user.role == "SuperAdmin":
+            return True
+        if not obj:
+            return True
+
+        user_shop = getattr(request.user, "shop", None)
+        if not user_shop:
+            return False
+
+        return getattr(obj.stock.product, "shop", None) == user_shop
+
+    def has_change_permission(self, request, obj=None):
+        return self.has_view_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return self.has_view_permission(request, obj)
 
 
 @admin.register(Expense)
 class ExpenseAdmin(ShopManagerAdmin):
-    list_display = ("title", "amount", "expense_type", "date", "shop")
-    list_filter = ["shop", "expense_type", "date"]
+    list_display = ("title", "amount_formatted", "expense_type", "date", "incurred_by", "shop")
+    list_filter = ("expense_type", "date", "shop")
+    search_fields = ("title",)
+    date_hierarchy = "date"
+    ordering = ("-date",)
+
+    def amount_formatted(self, obj):
+        return f"KES {obj.amount:,.2f}"
+    amount_formatted.short_description = "Amount"
+    amount_formatted.admin_order_field = "amount"
+
+    # Explicit shop scoping (this is the key fix)
+    def get_queryset(self, request):
+        qs = Expense.objects.select_related("shop", "incurred_by")
+        if request.user.role == "SuperAdmin":
+            return qs
+        user_shop = getattr(request.user, "shop", None)
+        if user_shop:
+            return qs.filter(shop=user_shop)
+        return qs.none()
+
+    # Ensure object-level permission also works correctly
+    def has_view_permission(self, request, obj=None):
+        if request.user.role == "SuperAdmin":
+            return True
+        if obj is None:
+            return True
+        user_shop = getattr(request.user, "shop", None)
+        return getattr(obj, "shop", None) == user_shop
+
+    def has_change_permission(self, request, obj=None):
+        return self.has_view_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return self.has_view_permission(request, obj)
 
 
 @admin.register(OfflineSyncLog)

@@ -60,7 +60,7 @@ INSTALLED_APPS = [
     "corsheaders",
     # Local apps
     
-    "shop_manager",
+    'shop_manager.apps.ShopManagerConfig',
     "widget_tweaks",
 ]
 
@@ -81,6 +81,7 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_htmx.middleware.HtmxMiddleware", # HTMX middleware for handling HTMX requests
 ]
 
 ROOT_URLCONF = "backend.urls"
@@ -108,6 +109,7 @@ TEMPLATES = [
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
+                "django.template.context_processors.debug",
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
@@ -298,13 +300,31 @@ UNFOLD = {
     "DASHBOARD_CALLBACK": "backend.utils.dashboard.dashboard_callback",  # keep if you have it
     "COLORS": {
         "primary": {
-            "50": "#f0f9ff",
+             "50": "#f0f9ff",
+
             "100": "#e0f2fe",
+
+            "200": "#bae6fd",
+
+            "300": "#7dd3fc",
+
+            "400": "#38bdf8",
+
             "500": "#0ea5e9",
+
             "600": "#0284c7",
-            "900": "#0c4a6e",
+
+            "700": "#0369a1",
+
+            "800": "#075985",
+
+            "900": "#0c3d66",
         },
     },
+
+    # Dark mode settings
+    "DARK_MODE_THEME": "django-admin-darkly",
+
     "SIDEBAR": {
         "show_search": True,
         "show_all_applications": False,
@@ -314,16 +334,20 @@ UNFOLD = {
                 "icon": "storefront",
                 "items": [
                     {
-                        "title": _("My Shop"),
-                        "icon": "store",
-                        "link": reverse_lazy("admin:shop_manager_shop_changelist"),
+                        "title": _("My Shop"),           # ← NOW POINTS TO DASHBOARD
+                        "icon": "dashboard",
+                        "link": reverse_lazy("admin:index"),
                     },
+                    # {
+                    #     "title": _("Manage Shop Details"),
+                    #     "icon": "store",
+                    #     "link": reverse_lazy("admin:shop_manager_shop_changelist"),
+                    # },
                     {
                         "title": _("Users"),
                         "icon": "people",
                         "link": reverse_lazy("admin:accounts_user_changelist"),
-                        "permission": lambda r: r.user.role
-                        in ["SuperAdmin", "ShopAdmin"],
+                        "permission": lambda r: r.user.role in ["SuperAdmin", "ShopAdmin"],
                     },
                 ],
             },
@@ -365,7 +389,7 @@ UNFOLD = {
                     {
                         "title": _("New Purchase"),
                         "icon": "add_shopping_cart",
-                        "link": "/add-purchase/",  # your custom view
+                        "link": "/api/shopmanager/add-purchase/",  # from custom view
                     },
                     {
                         "title": _("Usage / Consumption"),
@@ -375,7 +399,7 @@ UNFOLD = {
                     {
                         "title": _("New Usage"),
                         "icon": "add",
-                        "link": "/add-usage/",
+                        "link": "/api/shopmanager/add-usage/",  # from custom view
                     },
                     {
                         "title": _("Expenses"),
