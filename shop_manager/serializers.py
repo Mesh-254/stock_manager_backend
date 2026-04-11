@@ -237,7 +237,8 @@ class ProductWriteSerializer(serializers.ModelSerializer):
         Custom create logic:
         - Sets shop and created_by from request user
         - Initializes average_cost_price = cost_price
-        - Creates initial Stock record if provided
+        - ALWAYS creates a Stock record (0 or initial_stock)
+        - Uses update_stock() when initial_stock > 0 so we get a proper audit trail
         """
         initial_stock = validated_data.pop("initial_stock", Decimal("0"))
         user = self.context["request"].user
@@ -246,16 +247,29 @@ class ProductWriteSerializer(serializers.ModelSerializer):
             **validated_data,
             shop=user.shop if hasattr(user, "shop") else None,
             created_by=user,
-            average_cost_price=validated_data[
-                "cost_price"
-            ],  # initial average = cost_price
+            average_cost_price=validated_data["cost_price"],
         )
 
+        from .utils import update_stock
+
         if initial_stock > 0:
-            Stock.objects.create(product=product, quantity=initial_stock)
+            # Create stock + audit transaction (best for traceability)
+            update_stock(
+                product=product,
+                quantity_change=initial_stock,
+                transaction_type="initial",          # will show as "unknown" until you add it to choices
+                reason="Initial stock on product creation",
+                reference="product creation",
+                user=user,
+            )
+        else:
+            # Just guarantee the zero stock record exists
+            Stock.objects.get_or_create(
+                product=product,
+                defaults={"quantity": Decimal("0.00")}
+            )
 
         return product
-
 
 # =============================================================================
 # STOCK SERIALIZERS
@@ -400,25 +414,25 @@ class PurchaseSerializer(serializers.ModelSerializer):
 # =============================================================================
 # USAGE SERIALIZERS  (Daily Consumption)
 # =============================================================================
-
-
 class UsageItemSerializer(serializers.ModelSerializer):
     """
     Serializer for individual usage/consumption items.
+    Only product and quantity are required from the client.
     """
 
     product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
 
     class Meta:
         model = UsageItem
-        fields = ["id", "product", "quantity", "unit_cost_price"]
+        fields = ["id", "product", "quantity"]
+        read_only_fields = ["id"]
 
 
 class UsageSerializer(serializers.ModelSerializer):
     """
     Serializer for Usage (stock outflow / daily consumption).
     Critical for school usage cost reports.
-    Automatically snapshots average_cost_price and deducts stock.
+    Automatically snapshots average_cost_price logic via the model's .cost property.
     """
 
     shop = serializers.PrimaryKeyRelatedField(
@@ -458,7 +472,6 @@ class UsageSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """
         Atomic creation of Usage + Items + Stock deduction.
-        Snapshots average_cost_price for accurate historical reporting.
         """
         items_data = validated_data.pop("items")
         request = self.context["request"]
@@ -470,11 +483,8 @@ class UsageSerializer(serializers.ModelSerializer):
 
         usage = Usage.objects.create(**validated_data)
 
-        # Create usage items with cost snapshot
+        # Create usage items (no unit_cost_price needed anymore)
         for item_data in items_data:
-            product = item_data["product"]
-            # Snapshot current average cost for accurate reporting
-            item_data["unit_cost_price"] = product.average_cost_price or Decimal("0.00")
             UsageItem.objects.create(usage=usage, **item_data)
 
         # Update total and deduct stock
