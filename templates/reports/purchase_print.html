@@ -296,7 +296,7 @@
             {% for purchase in recent_purchases %}
             <tr>
               <td style="text-align: center; font-family: monospace; font-weight: 700">#{{ purchase.id }}</td>
-              <td>{{ purchase.purchase_date|date:"d M Y, H:i" }}</td>
+              <td>{{ purchase.purchase_date }}</td>
               <td>{{ purchase.supplier.name|default:"—" }}</td>
               <td style="text-align: right; font-weight: 700" class="tabular-nums cost">KES {{ purchase.total_cost|floatformat:2|intcomma }}</td>
               <td style="text-align: center; font-weight: 700; {% if purchase.status == 'APPROVED' %}color: #166534{% elif purchase.status == 'PENDING' %}color: #a16207{% else %}color: #991b1b{% endif %}">

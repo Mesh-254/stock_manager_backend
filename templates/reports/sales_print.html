@@ -285,7 +285,7 @@
             {% for sale in recent_sales %}
             <tr>
               <td style="text-align: center; font-family: monospace; font-weight: 700">#{{ sale.id }}</td>
-              <td>{{ sale.sale_date|date:"d M Y, H:i" }}</td>
+              <td>{{ sale.sale_date }}</td>
               <td>{{ sale.sold_by.full_name|default:"—" }}</td>
               <td style="text-align: right; font-weight: 700" class="tabular-nums revenue">KES {{ sale.total_amount|floatformat:2|intcomma }}</td>
               <td style="text-align: center; font-weight: 700">

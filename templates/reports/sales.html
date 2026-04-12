@@ -1,48 +1,22 @@
-{% extends "reports/base_report.html" %} {% load humanize %} {% block
-report_content %}
+{% extends "reports/base_report.html" %}
+{% load humanize %}
+
+{% block report_content %}
 <div style="display: flex; flex-direction: column; gap: 2.5rem">
+
   <!-- Top Selling Products Section -->
   {% if top_products %}
   <section aria-labelledby="top-products-heading">
-    <div
-      style="
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-      "
-    >
+    <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
       <div>
-        <h2
-          id="top-products-heading"
-          style="
-            font-size: 1.875rem;
-            font-weight: 700;
-            letter-spacing: -0.015em;
-            margin: 0;
-            color: #0f172a;
-          "
-        >
+        <h2 id="top-products-heading" style="font-size: 1.875rem; font-weight: 700; letter-spacing: -0.015em; margin: 0; color: #0f172a;">
           Top Selling Products
         </h2>
-        <p style="margin: 0.5rem 0 0; font-size: 0.875rem; color: #64748b">
-          Showing {{ top_products|length }} product{{
-          top_products|length|pluralize }} • Sorted by revenue
+        <p style="margin: 0.5rem 0 0; font-size: 0.875rem; color: #64748b;">
+          Showing {{ top_products|length }} product{{ top_products|length|pluralize }} • Sorted by revenue
         </p>
       </div>
-      <span
-        style="
-          display: inline-flex;
-          align-items: center;
-          padding: 0.375rem 0.875rem;
-          border-radius: 9999px;
-          font-size: 0.875rem;
-          font-weight: 600;
-          background-color: #eef2ff;
-          color: #3730a3;
-          width: fit-content;
-        "
-      >
+      <span style="display: inline-flex; align-items: center; padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; background-color: #eef2ff; color: #3730a3; width: fit-content;">
         {{ top_products|length }} items
       </span>
     </div>
@@ -50,213 +24,39 @@ report_content %}
     <div class="card" style="border-radius: 16px; overflow: hidden">
       <!-- Desktop Table -->
       <div style="display: none; margin: 0" class="desktop-view">
-        <table
-          style="width: 100%; border-collapse: collapse; background: white"
-        >
-          <thead
-            style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0"
-          >
+        <table style="width: 100%; border-collapse: collapse; background: white">
+          <thead style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0">
             <tr>
-              <th
-                style="
-                  padding: 1rem 1.5rem;
-                  text-align: left;
-                  font-size: 0.75rem;
-                  font-weight: 700;
-                  color: #475569;
-                  text-transform: uppercase;
-                  letter-spacing: 0.05em;
-                "
-              >
-                Product
-              </th>
-              <th
-                style="
-                  padding: 1rem 1.5rem;
-                  text-align: left;
-                  font-size: 0.75rem;
-                  font-weight: 700;
-                  color: #475569;
-                  text-transform: uppercase;
-                  letter-spacing: 0.05em;
-                "
-              >
-                Category
-              </th>
-              <th
-                style="
-                  padding: 1rem 1.5rem;
-                  text-align: right;
-                  font-size: 0.75rem;
-                  font-weight: 700;
-                  color: #475569;
-                  text-transform: uppercase;
-                  letter-spacing: 0.05em;
-                "
-              >
-                Units Sold
-              </th>
-              <th
-                style="
-                  padding: 1rem 1.5rem;
-                  text-align: right;
-                  font-size: 0.75rem;
-                  font-weight: 700;
-                  color: #475569;
-                  text-transform: uppercase;
-                  letter-spacing: 0.05em;
-                "
-              >
-                Revenue
-              </th>
-              <th
-                style="
-                  padding: 1rem 1.5rem;
-                  text-align: right;
-                  font-size: 0.75rem;
-                  font-weight: 700;
-                  color: #475569;
-                  text-transform: uppercase;
-                  letter-spacing: 0.05em;
-                "
-              >
-                Profit
-              </th>
+              <th style="padding: 1rem 1.5rem; text-align: left; font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Product</th>
+              <th style="padding: 1rem 1.5rem; text-align: left; font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Category</th>
+              <th style="padding: 1rem 1.5rem; text-align: right; font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Units Sold</th>
+              <th style="padding: 1rem 1.5rem; text-align: right; font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Revenue</th>
+              <th style="padding: 1rem 1.5rem; text-align: right; font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Profit</th>
             </tr>
           </thead>
           <tbody style="background: white">
             {% for product in top_products %}
-            <tr
-              style="
-                border-bottom: 1px solid #e2e8f0;
-                transition: background-color 200ms;
-              "
-            >
-              <td
-                style="
-                  padding: 1rem 1.5rem;
-                  display: flex;
-                  align-items: center;
-                  gap: 0.75rem;
-                "
-              >
-                <div
-                  style="
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 10px;
-                    background: linear-gradient(
-                      135deg,
-                      #e0e7ff 0%,
-                      #f0f4ff 100%
-                    );
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: #4f46e5;
-                    font-weight: 700;
-                    font-size: 1rem;
-                    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-                  "
-                >
+            <tr style="border-bottom: 1px solid #e2e8f0; transition: background-color 200ms;">
+              <td style="padding: 1rem 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #e0e7ff 0%, #f0f4ff 100%); display: flex; align-items: center; justify-content: center; color: #4f46e5; font-weight: 700; font-size: 1rem; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);">
                   {{ product.name|first|upper }}
                 </div>
-                <div
-                  style="font-weight: 600; color: #0f172a; font-size: 0.875rem"
-                >
-                  {{ product.name }}
-                </div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 0.875rem;">{{ product.name }}</div>
               </td>
-              <td
-                style="
-                  padding: 1rem 1.5rem;
-                  color: #475569;
-                  font-size: 0.875rem;
-                "
-              >
-                {{ product.category.name|default:"—" }}
-              </td>
-              <td
-                style="
-                  padding: 1rem 1.5rem;
-                  text-align: right;
-                  font-weight: 600;
-                  color: #0f172a;
-                  font-size: 0.875rem;
-                  font-variant-numeric: tabular-nums;
-                "
-              >
-                {{ product.qty_sold|intcomma }}
-              </td>
-              <td
-                style="
-                  padding: 1rem 1.5rem;
-                  text-align: right;
-                  font-weight: 700;
-                  color: #16a34a;
-                  font-size: 0.875rem;
-                  font-variant-numeric: tabular-nums;
-                "
-              >
-                KES {{ product.revenue|floatformat:2|intcomma }}
-              </td>
-              <td
-                style="
-                  padding: 1rem 1.5rem;
-                  text-align: right;
-                  font-weight: 700;
-                  color: #2563eb;
-                  font-size: 0.875rem;
-                  font-variant-numeric: tabular-nums;
-                "
-              >
-                KES {{ product.profit|floatformat:2|intcomma }}
-              </td>
+              <td style="padding: 1rem 1.5rem; color: #475569; font-size: 0.875rem;">{{ product.category.name|default:"—" }}</td>
+              <td style="padding: 1rem 1.5rem; text-align: right; font-weight: 600; color: #0f172a; font-size: 0.875rem; font-variant-numeric: tabular-nums;">{{ product.qty_sold|intcomma }}</td>
+              <td style="padding: 1rem 1.5rem; text-align: right; font-weight: 700; color: #16a34a; font-size: 0.875rem; font-variant-numeric: tabular-nums;">KES {{ product.revenue|floatformat:2|intcomma }}</td>
+              <td style="padding: 1rem 1.5rem; text-align: right; font-weight: 700; color: #2563eb; font-size: 0.875rem; font-variant-numeric: tabular-nums;">KES {{ product.profit|floatformat:2|intcomma }}</td>
             </tr>
             {% empty %}
             <tr>
               <td colspan="5" style="padding: 4rem 1.5rem; text-align: center">
-                <div
-                  style="
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    color: #cbd5e1;
-                  "
-                >
-                  <svg
-                    style="width: 64px; height: 64px; margin-bottom: 1rem"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="1.5"
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #cbd5e1;">
+                  <svg style="width: 64px; height: 64px; margin-bottom: 1rem" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                   </svg>
-                  <p
-                    style="
-                      font-size: 1.125rem;
-                      font-weight: 600;
-                      color: #64748b;
-                      margin: 0;
-                    "
-                  >
-                    No sales data available yet
-                  </p>
-                  <p
-                    style="
-                      margin-top: 0.5rem;
-                      font-size: 0.875rem;
-                      color: #94a3b8;
-                    "
-                  >
-                    Try changing the date range or filters
-                  </p>
+                  <p style="font-size: 1.125rem; font-weight: 600; color: #64748b; margin: 0;">No sales data available yet</p>
+                  <p style="margin-top: 0.5rem; font-size: 0.875rem; color: #94a3b8;">Try changing the date range or filters</p>
                 </div>
               </td>
             </tr>
@@ -268,159 +68,34 @@ report_content %}
       <!-- Mobile Cards -->
       <div style="border-top: 1px solid #e2e8f0">
         {% for product in top_products %}
-        <div
-          style="
-            padding: 1.25rem;
-            border-bottom: 1px solid #e2e8f0;
-            transition: background-color 200ms;
-            background: white;
-          "
-        >
-          <div
-            style="
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-start;
-              margin-bottom: 1rem;
-              gap: 1rem;
-            "
-          >
+        <div style="padding: 1.25rem; border-bottom: 1px solid #e2e8f0; transition: background-color 200ms; background: white;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; gap: 1rem;">
             <div style="flex: 1">
-              <h3
-                style="
-                  font-weight: 700;
-                  color: #0f172a;
-                  font-size: 1rem;
-                  margin: 0;
-                "
-              >
-                {{ product.name }}
-              </h3>
-              <p
-                style="font-size: 0.875rem; color: #64748b; margin: 0.5rem 0 0"
-              >
-                {{ product.category.name|default:"Uncategorized" }}
-              </p>
+              <h3 style="font-weight: 700; color: #0f172a; font-size: 1rem; margin: 0;">{{ product.name }}</h3>
+              <p style="font-size: 0.875rem; color: #64748b; margin: 0.5rem 0 0;">{{ product.category.name|default:"Uncategorized" }}</p>
             </div>
             <div style="text-align: right">
-              <div
-                style="
-                  font-size: 0.75rem;
-                  color: #64748b;
-                  text-transform: uppercase;
-                  letter-spacing: 0.05em;
-                  margin-bottom: 0.25rem;
-                "
-              >
-                Units Sold
-              </div>
-              <div
-                style="
-                  font-size: 1.5rem;
-                  font-weight: 800;
-                  color: #0f172a;
-                  font-variant-numeric: tabular-nums;
-                "
-              >
-                {{ product.qty_sold|intcomma }}
-              </div>
+              <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Units Sold</div>
+              <div style="font-size: 1.5rem; font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums;">{{ product.qty_sold|intcomma }}</div>
             </div>
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem">
-            <div
-              style="
-                background: #f0fdf4;
-                border: 1px solid #dcfce7;
-                border-radius: 12px;
-                padding: 1rem;
-              "
-            >
-              <div
-                style="
-                  font-size: 0.75rem;
-                  color: #166534;
-                  font-weight: 700;
-                  text-transform: uppercase;
-                  letter-spacing: 0.05em;
-                  margin-bottom: 0.25rem;
-                "
-              >
-                Revenue
-              </div>
-              <div
-                style="
-                  font-size: 1.125rem;
-                  font-weight: 700;
-                  color: #16a34a;
-                  font-variant-numeric: tabular-nums;
-                "
-              >
-                KES {{ product.revenue|floatformat:2|intcomma }}
-              </div>
+            <div style="background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 12px; padding: 1rem;">
+              <div style="font-size: 0.75rem; color: #166534; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Revenue</div>
+              <div style="font-size: 1.125rem; font-weight: 700; color: #16a34a; font-variant-numeric: tabular-nums;">KES {{ product.revenue|floatformat:2|intcomma }}</div>
             </div>
-            <div
-              style="
-                background: #f0f4ff;
-                border: 1px solid #e0e7ff;
-                border-radius: 12px;
-                padding: 1rem;
-              "
-            >
-              <div
-                style="
-                  font-size: 0.75rem;
-                  color: #1e40af;
-                  font-weight: 700;
-                  text-transform: uppercase;
-                  letter-spacing: 0.05em;
-                  margin-bottom: 0.25rem;
-                "
-              >
-                Profit
-              </div>
-              <div
-                style="
-                  font-size: 1.125rem;
-                  font-weight: 700;
-                  color: #2563eb;
-                  font-variant-numeric: tabular-nums;
-                "
-              >
-                KES {{ product.profit|floatformat:2|intcomma }}
-              </div>
+            <div style="background: #f0f4ff; border: 1px solid #e0e7ff; border-radius: 12px; padding: 1rem;">
+              <div style="font-size: 0.75rem; color: #1e40af; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Profit</div>
+              <div style="font-size: 1.125rem; font-weight: 700; color: #2563eb; font-variant-numeric: tabular-nums;">KES {{ product.profit|floatformat:2|intcomma }}</div>
             </div>
           </div>
         </div>
         {% empty %}
-        <div
-          style="
-            padding: 3rem 1.25rem;
-            text-align: center;
-            color: #64748b;
-            background: white;
-          "
-        >
-          <svg
-            style="
-              width: 64px;
-              height: 64px;
-              margin: 0 auto 1rem;
-              color: #cbd5e1;
-            "
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="1.5"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
+        <div style="padding: 3rem 1.25rem; text-align: center; color: #64748b; background: white;">
+          <svg style="width: 64px; height: 64px; margin: 0 auto 1rem; color: #cbd5e1;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
           </svg>
-          <p style="font-size: 1.125rem; font-weight: 600; margin: 0">
-            No products sold yet
-          </p>
+          <p style="font-size: 1.125rem; font-weight: 600; margin: 0;">No products sold yet</p>
         </div>
         {% endfor %}
       </div>
@@ -430,311 +105,64 @@ report_content %}
 
   <!-- Recent Transactions Section -->
   <section aria-labelledby="recent-transactions-heading">
-    <div
-      style="
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-      "
-    >
+    <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
       <div>
-        <h2
-          id="recent-transactions-heading"
-          style="
-            font-size: 1.875rem;
-            font-weight: 700;
-            letter-spacing: -0.015em;
-            margin: 0;
-            color: #0f172a;
-          "
-        >
-          Recent Transactions
-        </h2>
-        <p style="margin: 0.5rem 0 0; font-size: 0.875rem; color: #64748b">
-          Latest sales activity
-        </p>
+        <h2 id="recent-transactions-heading" style="font-size: 1.875rem; font-weight: 700; letter-spacing: -0.015em; margin: 0; color: #0f172a;">Recent Transactions</h2>
+        <p style="margin: 0.5rem 0 0; font-size: 0.875rem; color: #64748b;">Latest sales activity</p>
       </div>
-      <span
-        style="
-          display: inline-flex;
-          align-items: center;
-          padding: 0.375rem 0.875rem;
-          border-radius: 9999px;
-          font-size: 0.875rem;
-          font-weight: 600;
-          background-color: #f1f5f9;
-          color: #334155;
-          width: fit-content;
-        "
-      >
-        Latest sales
-      </span>
+      <span style="display: inline-flex; align-items: center; padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; background-color: #f1f5f9; color: #334155; width: fit-content;">Latest sales</span>
     </div>
 
     <div class="card" style="border-radius: 16px; overflow: hidden">
       <!-- Desktop Table -->
       <div style="display: none; margin: 0" class="desktop-view">
-        <table
-          style="width: 100%; border-collapse: collapse; background: white"
-        >
-          <thead
-            style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0"
-          >
+        <table style="width: 100%; border-collapse: collapse; background: white">
+          <thead style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0">
             <tr>
-              <th
-                style="
-                  padding: 1rem 1.5rem;
-                  text-align: left;
-                  font-size: 0.75rem;
-                  font-weight: 700;
-                  color: #475569;
-                  text-transform: uppercase;
-                  letter-spacing: 0.05em;
-                "
-              >
-                ID
-              </th>
-              <th
-                style="
-                  padding: 1rem 1.5rem;
-                  text-align: left;
-                  font-size: 0.75rem;
-                  font-weight: 700;
-                  color: #475569;
-                  text-transform: uppercase;
-                  letter-spacing: 0.05em;
-                "
-              >
-                Date & Time
-              </th>
-              <th
-                style="
-                  padding: 1rem 1.5rem;
-                  text-align: left;
-                  font-size: 0.75rem;
-                  font-weight: 700;
-                  color: #475569;
-                  text-transform: uppercase;
-                  letter-spacing: 0.05em;
-                "
-              >
-                Sold By
-              </th>
-              <th
-                style="
-                  padding: 1rem 1.5rem;
-                  text-align: right;
-                  font-size: 0.75rem;
-                  font-weight: 700;
-                  color: #475569;
-                  text-transform: uppercase;
-                  letter-spacing: 0.05em;
-                "
-              >
-                Amount
-              </th>
-              <th
-                style="
-                  padding: 1rem 1.5rem;
-                  text-align: center;
-                  font-size: 0.75rem;
-                  font-weight: 700;
-                  color: #475569;
-                  text-transform: uppercase;
-                  letter-spacing: 0.05em;
-                "
-              >
-                Status
-              </th>
+              <th style="padding: 1rem 1.5rem; text-align: left; font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">ID</th>
+              <th style="padding: 1rem 1.5rem; text-align: left; font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Date & Time</th>
+              <th style="padding: 1rem 1.5rem; text-align: left; font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Sold By</th>
+              <th style="padding: 1rem 1.5rem; text-align: right; font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Amount</th>
+              <th style="padding: 1rem 1.5rem; text-align: center; font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Status</th>
             </tr>
           </thead>
           <tbody style="background: white">
             {% for sale in recent_sales %}
-            <tr
-              style="
-                border-bottom: 1px solid #e2e8f0;
-                transition: background-color 200ms;
-              "
-            >
-              <td
-                style="
-                  padding: 1rem 1.5rem;
-                  font-family: monospace;
-                  font-weight: 700;
-                  color: #0f172a;
-                  font-size: 0.875rem;
-                "
-              >
-                #{{ sale.id|truncatechars:8 }}
-              </td>
-              <td style="padding: 1rem 1.5rem">
+            <tr style="border-bottom: 1px solid #e2e8f0; transition: background-color 200ms;">
+              <td style="padding: 1rem 1.5rem; font-family: monospace; font-weight: 700; color: #0f172a; font-size: 0.875rem;">#{{ sale.id|truncatechars:8 }}</td>
+              <td style="padding: 1rem 1.5rem;">
                 <div style="display: flex; flex-direction: column">
-                  <span
-                    style="
-                      font-weight: 600;
-                      color: #0f172a;
-                      font-size: 0.875rem;
-                    "
-                    >{{ sale.sale_date|date:"d MMM Y" }}</span
-                  >
-                  <span
-                    style="
-                      font-size: 0.75rem;
-                      color: #64748b;
-                      margin-top: 0.25rem;
-                    "
-                    >{{ sale.sale_date|time:"H:i" }}</span
-                  >
+                  <span style="font-weight: 600; color: #0f172a; font-size: 0.875rem;">{{ sale.sale_date|date:"d MMM Y" }}</span>
+                  <span style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">{{ sale.sale_date|time:"H:i" }}</span>
                 </div>
               </td>
-              <td
-                style="
-                  padding: 1rem 1.5rem;
-                  font-size: 0.875rem;
-                  color: #334155;
-                "
-              >
-                {{ sale.sold_by.full_name|default:"—" }}
-              </td>
-              <td
-                style="
-                  padding: 1rem 1.5rem;
-                  text-align: right;
-                  font-size: 1.125rem;
-                  font-weight: 700;
-                  color: #16a34a;
-                  font-variant-numeric: tabular-nums;
-                "
-              >
-                KES {{ sale.total_amount|floatformat:2|intcomma }}
-              </td>
-              <td style="padding: 1rem 1.5rem; text-align: center">
-                {% if sale.payment_status == 'Paid' or sale.payment_status ==
-                'PAID' %}
-                <span
-                  style="
-                    display: inline-flex;
-                    align-items: center;
-                    padding: 0.375rem 0.875rem;
-                    border-radius: 9999px;
-                    font-size: 0.75rem;
-                    font-weight: 700;
-                    background-color: #dcfce7;
-                    color: #166534;
-                    border: 1px solid #86efac;
-                  "
-                >
-                  <span
-                    style="
-                      width: 0.5rem;
-                      height: 0.5rem;
-                      margin-right: 0.375rem;
-                      background: #16a34a;
-                      border-radius: 9999px;
-                    "
-                  ></span
-                  >Paid
-                </span>
-                {% elif sale.payment_status == 'Pending' or sale.payment_status
-                == 'PENDING' %}
-                <span
-                  style="
-                    display: inline-flex;
-                    align-items: center;
-                    padding: 0.375rem 0.875rem;
-                    border-radius: 9999px;
-                    font-size: 0.75rem;
-                    font-weight: 700;
-                    background-color: #fef08a;
-                    color: #a16207;
-                    border: 1px solid #fcd34d;
-                    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-                  "
-                >
-                  <span
-                    style="
-                      width: 0.5rem;
-                      height: 0.5rem;
-                      margin-right: 0.375rem;
-                      background: #ea580c;
-                      border-radius: 9999px;
-                    "
-                  ></span
-                  >Pending
-                </span>
+              <td style="padding: 1rem 1.5rem; font-size: 0.875rem; color: #334155;">{{ sale.sold_by.full_name|default:"—" }}</td>
+              <td style="padding: 1rem 1.5rem; text-align: right; font-size: 1.125rem; font-weight: 700; color: #16a34a; font-variant-numeric: tabular-nums;">KES {{ sale.total_amount|floatformat:2|intcomma }}</td>
+              <td style="padding: 1rem 1.5rem; text-align: center;">
+                {% if sale.payment_status == 'Paid' or sale.payment_status == 'PAID' %}
+                  <span style="display: inline-flex; align-items: center; padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; background-color: #dcfce7; color: #166534; border: 1px solid #86efac;">
+                    <span style="width: 0.5rem; height: 0.5rem; margin-right: 0.375rem; background: #16a34a; border-radius: 9999px;"></span>Paid
+                  </span>
+                {% elif sale.payment_status == 'Pending' or sale.payment_status == 'PENDING' %}
+                  <span style="display: inline-flex; align-items: center; padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; background-color: #fef08a; color: #a16207; border: 1px solid #fcd34d; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;">
+                    <span style="width: 0.5rem; height: 0.5rem; margin-right: 0.375rem; background: #ea580c; border-radius: 9999px;"></span>Pending
+                  </span>
                 {% else %}
-                <span
-                  style="
-                    display: inline-flex;
-                    align-items: center;
-                    padding: 0.375rem 0.875rem;
-                    border-radius: 9999px;
-                    font-size: 0.75rem;
-                    font-weight: 700;
-                    background-color: #fee2e2;
-                    color: #991b1b;
-                    border: 1px solid #fca5a5;
-                  "
-                >
-                  <span
-                    style="
-                      width: 0.5rem;
-                      height: 0.5rem;
-                      margin-right: 0.375rem;
-                      background: #dc2626;
-                      border-radius: 9999px;
-                    "
-                  ></span
-                  >Failed
-                </span>
+                  <span style="display: inline-flex; align-items: center; padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;">
+                    <span style="width: 0.5rem; height: 0.5rem; margin-right: 0.375rem; background: #dc2626; border-radius: 9999px;"></span>Failed
+                  </span>
                 {% endif %}
               </td>
             </tr>
             {% empty %}
             <tr>
               <td colspan="5" style="padding: 4rem 1.5rem; text-align: center">
-                <div
-                  style="
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    color: #cbd5e1;
-                  "
-                >
-                  <svg
-                    style="width: 64px; height: 64px; margin-bottom: 1rem"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="1.5"
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #cbd5e1;">
+                  <svg style="width: 64px; height: 64px; margin-bottom: 1rem" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                   </svg>
-                  <p
-                    style="
-                      font-size: 1.125rem;
-                      font-weight: 600;
-                      color: #64748b;
-                      margin: 0;
-                    "
-                  >
-                    No transactions recorded yet
-                  </p>
-                  <p
-                    style="
-                      margin-top: 0.5rem;
-                      font-size: 0.875rem;
-                      color: #94a3b8;
-                    "
-                  >
-                    New sales will appear here automatically
-                  </p>
+                  <p style="font-size: 1.125rem; font-weight: 600; color: #64748b; margin: 0;">No transactions recorded yet</p>
+                  <p style="margin-top: 0.5rem; font-size: 0.875rem; color: #94a3b8;">New sales will appear here automatically</p>
                 </div>
               </td>
             </tr>
@@ -746,147 +174,38 @@ report_content %}
       <!-- Mobile Cards -->
       <div style="border-top: 1px solid #e2e8f0">
         {% for sale in recent_sales %}
-        <div
-          style="
-            padding: 1.25rem;
-            border-bottom: 1px solid #e2e8f0;
-            transition: background-color 200ms;
-            background: white;
-          "
-        >
-          <div
-            style="
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-start;
-              margin-bottom: 0.75rem;
-              gap: 1rem;
-            "
-          >
+        <div style="padding: 1.25rem; border-bottom: 1px solid #e2e8f0; transition: background-color 200ms; background: white;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; gap: 1rem;">
             <div>
-              <div
-                style="
-                  display: flex;
-                  align-items: center;
-                  gap: 0.5rem;
-                  margin-bottom: 0.5rem;
-                "
-              >
-                <span
-                  style="
-                    font-family: monospace;
-                    font-weight: 800;
-                    color: #4f46e5;
-                    font-size: 0.875rem;
-                  "
-                  >#{{ sale.id|truncatechars:8 }}</span
-                >
-                {% if sale.payment_status == 'Paid' or sale.payment_status ==
-                'PAID' %}
-                <span
-                  style="
-                    display: inline-flex;
-                    align-items: center;
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 9999px;
-                    font-size: 0.75rem;
-                    font-weight: 600;
-                    background-color: #dcfce7;
-                    color: #166534;
-                  "
-                  >Paid</span
-                >
-                {% elif sale.payment_status == 'Pending' or sale.payment_status
-                == 'PENDING' %}
-                <span
-                  style="
-                    display: inline-flex;
-                    align-items: center;
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 9999px;
-                    font-size: 0.75rem;
-                    font-weight: 600;
-                    background-color: #fef08a;
-                    color: #a16207;
-                  "
-                  >Pending</span
-                >
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <span style="font-family: monospace; font-weight: 800; color: #4f46e5; font-size: 0.875rem;">#{{ sale.id|truncatechars:8 }}</span>
+                {% if sale.payment_status == 'Paid' or sale.payment_status == 'PAID' %}
+                  <span style="display: inline-flex; align-items: center; padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; background-color: #dcfce7; color: #166534;">Paid</span>
+                {% elif sale.payment_status == 'Pending' or sale.payment_status == 'PENDING' %}
+                  <span style="display: inline-flex; align-items: center; padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; background-color: #fef08a; color: #a16207;">Pending</span>
                 {% else %}
-                <span
-                  style="
-                    display: inline-flex;
-                    align-items: center;
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 9999px;
-                    font-size: 0.75rem;
-                    font-weight: 600;
-                    background-color: #fee2e2;
-                    color: #991b1b;
-                  "
-                  >Failed</span
-                >
+                  <span style="display: inline-flex; align-items: center; padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Failed</span>
                 {% endif %}
               </div>
-              <p
-                style="margin: 0.5rem 0 0; font-size: 0.875rem; color: #475569"
-              >
-                {{ sale.sale_date|date:"d MMM Y • H:i" }}
-              </p>
+              <p style="margin: 0.5rem 0 0; font-size: 0.875rem; color: #475569;">{{ sale.sale_date }}</p>
             </div>
             <div style="text-align: right">
-              <div
-                style="
-                  font-size: 1.25rem;
-                  font-weight: 800;
-                  color: #16a34a;
-                  font-variant-numeric: tabular-nums;
-                "
-              >
-                KES {{ sale.total_amount|floatformat:2|intcomma }}
-              </div>
-              <p
-                style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem"
-              >
-                {{ sale.sold_by.full_name|default:"—" }}
-              </p>
+              <div style="font-size: 1.25rem; font-weight: 800; color: #16a34a; font-variant-numeric: tabular-nums;">KES {{ sale.total_amount|floatformat:2|intcomma }}</div>
+              <p style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">{{ sale.sold_by.full_name|default:"—" }}</p>
             </div>
           </div>
         </div>
         {% empty %}
-        <div
-          style="
-            padding: 3rem 1.25rem;
-            text-align: center;
-            color: #64748b;
-            background: white;
-          "
-        >
-          <svg
-            style="
-              width: 64px;
-              height: 64px;
-              margin: 0 auto 1rem;
-              color: #cbd5e1;
-            "
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="1.5"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
+        <div style="padding: 3rem 1.25rem; text-align: center; color: #64748b; background: white;">
+          <svg style="width: 64px; height: 64px; margin: 0 auto 1rem; color: #cbd5e1;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
           </svg>
-          <p style="font-size: 1.125rem; font-weight: 600; margin: 0">
-            No recent sales
-          </p>
+          <p style="font-size: 1.125rem; font-weight: 600; margin: 0;">No recent sales</p>
         </div>
         {% endfor %}
       </div>
     </div>
   </section>
-</div>
 
+</div>
 {% endblock report_content %}
