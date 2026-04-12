@@ -200,9 +200,7 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",  # your custom static files
 ]
 
-# Where collectstatic puts files in production
-STATIC_ROOT = "/var/www/kanainvestments-static/"
-
+STATIC_ROOT = os.getenv('STATIC_ROOT', BASE_DIR / 'staticfiles')
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
