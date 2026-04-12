@@ -12,6 +12,7 @@ Key Improvements:
 - Heavily documented and consistent with your DRF permissions.
 """
 
+from django.utils import timezone
 from decimal import Decimal
 
 from django.contrib import admin
@@ -24,7 +25,7 @@ from django.db.models import Sum, Count, F, ExpressionWrapper, DecimalField
 from django.db.models.functions import NullIf
 from .models import (
     Shop, Category, Supplier, Product, Stock, StockTransaction,
-    Purchase, PurchaseItem, Usage, UsageItem, Expense, OfflineSyncLog,
+    Purchase, PurchaseItem, Usage, UsageItem, Expense, OfflineSyncLog, DailyStudentRecord
 )
 
 
@@ -559,3 +560,46 @@ class OfflineSyncLogAdmin(ModelAdmin):
     list_display = ("shop", "sync_status", "sync_date", "error_message")
     list_filter = ["sync_status", "shop"]
     readonly_fields = ("sync_date", "error_message")
+
+
+# =============================================================================
+# DAILY STUDENT RECORD ADMIN
+# =============================================================================
+@admin.register(DailyStudentRecord)
+class DailyStudentRecordAdmin(ShopManagerAdmin):
+    list_display = (
+        "record_date",
+        "students_present",
+        "note",
+        "recorded_by",
+        "created_at",
+    )
+    list_filter = ("record_date", "recorded_by")
+    search_fields = ("note", "recorded_by__full_name")
+    date_hierarchy = "record_date"
+    ordering = ("-record_date",)
+
+    readonly_fields = ("recorded_by", "created_at", "updated_at")
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+
+        # === AUTO-PREFILL TODAY'S DATE ON ADD ===
+        if not obj:  # creating new record
+            today = timezone.now().date()
+            if 'record_date' in form.base_fields:
+                form.base_fields['record_date'].initial = today
+
+            if 'recorded_by' in form.base_fields:
+                form.base_fields['recorded_by'].initial = request.user
+                form.base_fields['recorded_by'].disabled = True
+
+        return form
+
+    def save_model(self, request, obj, form, change):
+        if not change:  # Creating new
+            if not getattr(obj, 'recorded_by', None):
+                obj.recorded_by = request.user
+            if not getattr(obj, 'shop', None) and hasattr(request.user, 'shop'):
+                obj.shop = request.user.shop
+        super().save_model(request, obj, form, change)

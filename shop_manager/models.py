@@ -667,3 +667,56 @@ class OfflineSyncLog(models.Model):
         null=True,
         help_text="Details of any error that occurred during sync",
     )
+
+# =============================================================================
+# MODEL: Daily Student Record
+# =============================================================================
+class DailyStudentRecord(models.Model):
+    """
+    Daily record of number of students present.
+    One record per day per shop (prevents duplicates).
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    shop = models.ForeignKey(
+        Shop, 
+        on_delete=models.CASCADE, 
+        related_name="daily_student_records"
+    )
+    
+    record_date = models.DateField(
+        db_index=True,
+        default=timezone.now,
+        help_text="Date of student attendance"
+    )
+    
+    students_present = models.PositiveIntegerField(
+        help_text="Number of students present on this day"
+    )
+    
+    note = models.TextField(
+        blank=True, 
+        null=True, 
+        help_text="Optional note (e.g. Exam day, Public holiday, etc.)"
+    )
+    
+    recorded_by = models.ForeignKey(
+        "accounts.User", 
+        on_delete=models.SET_NULL, 
+        null=True,
+        related_name="student_records"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('shop', 'record_date')  # One record per day per shop
+        ordering = ['-record_date']
+        indexes = [
+            models.Index(fields=['shop', 'record_date']),
+            models.Index(fields=['record_date']),
+        ]
+
+    def __str__(self):
+        return f"{self.record_date}: {self.students_present} students"

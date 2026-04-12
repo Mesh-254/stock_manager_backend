@@ -378,6 +378,22 @@ UNFOLD = {
                 ],
             },
             {
+                "title": _("Daily Students Present"),
+                "icon": "group",
+                "items": [
+                    {
+                        "title": _("Record Today"),           # ← Quick one-click entry
+                        "icon": "add",
+                        "link": "/api/shopmanager/record-today/",
+                    },
+                    {
+                        "title": _("View All Records"),
+                        "icon": "list",
+                        "link": reverse_lazy("admin:shop_manager_dailystudentrecord_changelist"),
+                    },
+                ],
+            },
+            {
                 "title": _("Transactions"),
                 "icon": "swap_horiz",
                 "items": [
@@ -406,6 +422,7 @@ UNFOLD = {
                         "icon": "receipt_long",
                         "link": reverse_lazy("admin:shop_manager_expense_changelist"),
                     },
+                    
                 ],
             },
             {
@@ -422,11 +439,11 @@ UNFOLD = {
                         "icon": "shopping_cart",
                         "link": "/reports/purchases/",
                     },
-                    {
-                        "title": _("Expense Report"),
-                        "icon": "receipt_long",
-                        "link": "/reports/expenses/",
-                    },
+                    # {
+                    #     "title": _("Expense Report"),
+                    #     "icon": "receipt_long",
+                    #     "link": "/reports/expenses/",
+                    # },
                     {
                         "title": _("Stock Report"),
                         "icon": "inventory_2",

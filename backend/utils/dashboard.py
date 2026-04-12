@@ -88,7 +88,7 @@ def dashboard_callback(request, extra_context=None):
 
     # Import models (assumes you have these in shop_manager app)
 
-    from shop_manager.models import Usage, Stock, StockTransaction, Purchase, Product, Expense
+    from shop_manager.models import Usage, Stock, StockTransaction, Purchase, Product, Expense, DailyStudentRecord
 
     # Filter by shop if not superadmin
 
@@ -140,6 +140,22 @@ def dashboard_callback(request, extra_context=None):
 
     ).count()
 
+    # Add after getting user_shop and before cards = [...]
+
+    # Today's students present
+    today = timezone.now().date()
+    today_students = 0
+    if user_shop:
+        today_record = DailyStudentRecord.objects.filter(
+            shop=user_shop, record_date=today
+        ).first()
+        today_students = today_record.students_present if today_record else 0
+    else:
+        # For SuperAdmin - show total across all shops (optional)
+        today_students = DailyStudentRecord.objects.filter(
+            record_date=today
+        ).aggregate(total=Sum("students_present"))["total"] or 0
+
     cards = [
         {
             "title": "Total Usage Cost",
@@ -172,6 +188,14 @@ def dashboard_callback(request, extra_context=None):
             "url": "/admin/shop_manager/stock/?quantity__lt=reorder_level",
             "icon": "alert-circle",
             "color": "amber",
+        },
+        {
+            "title": "Students Present Today",
+            "value": str(today_students),
+            "subtitle": f"Recorded on {today.strftime('%d %b')}",
+            "url": "/admin/shop_manager/dailystudentrecord/",
+            "icon": "group",
+            "color": "indigo",          # or "blue", "purple"
         },
     ]
 
