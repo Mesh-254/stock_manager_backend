@@ -31,6 +31,9 @@ from .models import Purchase, PurchaseItem, Usage, UsageItem, Supplier, Product
 from .permissions import IsCashierOrHigher
 from accounts.models import UserRole
 
+from django.urls import reverse
+from django.utils import timezone
+
 
 # =============================================================================
 # PURCHASE VIEWS
@@ -324,3 +327,21 @@ def detail_usage_view(request, usage_id):
 
     context = {'usage': usage}
     return render(request, 'shop_manager/detail_usage.html', context)
+
+
+# =============================================================================
+# DAILY STUDENT RECORD - QUICK "RECORD TODAY" (NO TEMPLATE)
+# =============================================================================
+
+@staff_member_required
+def record_today_view(request):
+    """
+    Redirects directly to Django Admin "Add" page with today's date pre-filled.
+    Zero custom templates used.
+    """
+    today = timezone.now().date().isoformat()
+
+    add_url = reverse("admin:shop_manager_dailystudentrecord_add")
+    redirect_url = f"{add_url}?record_date={today}"
+
+    return HttpResponseRedirect(redirect_url)

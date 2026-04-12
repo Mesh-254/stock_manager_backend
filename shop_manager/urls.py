@@ -11,6 +11,7 @@ from .custom_views import (
     detail_usage_view,
     edit_purchase_view,
     edit_usage_view,
+    record_today_view,
 )
 
 router = DefaultRouter()
@@ -30,7 +31,7 @@ router.register(r"usageitems", views.UsageItemViewSet, basename="usageitem")
 
 urlpatterns = [
     path("", include(router.urls)),
-    path("reports/<str:report_type>/", report_view, name="report_view"),
+    # path("reports/<str:report_type>/", report_view, name="report_view"),
     # Custom template-based views
     path("add-purchase/", add_purchase_view, name="add_purchase_custom"),
     path("edit-purchase/<uuid:purchase_id>/", edit_purchase_view, name="edit_purchase"),
@@ -42,4 +43,6 @@ urlpatterns = [
     path("add-usage/", add_usage_view, name="add_usage_custom"),
     path("edit-usage/<uuid:usage_id>/", edit_usage_view, name="edit_usage"),
     path("detail-usage/<uuid:usage_id>/", detail_usage_view, name="detail_usage"),
+
+    path( "record-today/", record_today_view, name="record_today"),
 ]

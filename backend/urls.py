@@ -24,6 +24,7 @@ from rest_framework_simplejwt.views import (
 )
 
 from accounts.views import home_redirect_view
+from shop_manager.report_views import report_view
 # from  .admin_init import SchoolShopAdminSite
 from django.contrib import admin
 
@@ -49,5 +50,7 @@ urlpatterns = [
 
     # Include the shop_manager app URLs
     path('api/shopmanager/', include('shop_manager.urls')),
+
+    path("reports/<str:report_type>/", report_view, name="report_view"),
 
 ]
