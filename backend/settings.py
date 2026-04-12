@@ -201,7 +201,7 @@ STATIC_URL = "static/"
 # ]
 
 # Where collectstatic puts files in production
-STATIC_ROOT = "/var/www/shopmanager-static/"
+STATIC_ROOT = "/var/www/kanainvestments-static/"
 
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
