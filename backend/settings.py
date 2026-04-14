@@ -330,6 +330,7 @@ UNFOLD = {
             {
                 "title": _("Core"),
                 "icon": "storefront",
+                "collapsible": True,
                 "items": [
                     {
                         "title": _("My Shop"),           # ← NOW POINTS TO DASHBOARD
@@ -352,6 +353,7 @@ UNFOLD = {
             {
                 "title": _("Product Catalog"),
                 "icon": "category",
+                "collapsible": True,
                 "items": [
                     {
                         "title": _("Categories"),
@@ -378,6 +380,7 @@ UNFOLD = {
             {
                 "title": _("Daily Students Present"),
                 "icon": "group",
+                "collapsible": True,
                 "items": [
                     {
                         "title": _("Record Today"),           # ← Quick one-click entry
@@ -394,6 +397,7 @@ UNFOLD = {
             {
                 "title": _("Transactions"),
                 "icon": "swap_horiz",
+                "collapsible": True,
                 "items": [
                     {
                         "title": _("Purchases"),
@@ -426,6 +430,7 @@ UNFOLD = {
             {
                 "title": _("Reports & Analytics"),
                 "icon": "analytics",
+                "collapsible": True,
                 "items": [
                     {
                         "title": _("Usage Report"),
@@ -451,4 +456,6 @@ UNFOLD = {
             },
         ],
     },
+    # Enable built-in sidebar collapse (icon mode)
+    "SIDEBAR_COLLAPSE": True,   # Unfold native
 }
