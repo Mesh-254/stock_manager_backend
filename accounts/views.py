@@ -141,7 +141,8 @@ class RegisterView(APIView):
             user.shop = shop
             user.save()
 
-            send_verification_email.delay(user.email, verification_token)
+            verification_url = f"{settings.FRONTEND_URL.rstrip('/')}/verify-email/{verification_token}"
+            send_verification_email.delay(user.email, verification_url)
 
             return Response({
                 "message": "Registration successful. Please check your email to verify your account.",
@@ -420,7 +421,8 @@ def resend_confirmation_email(request):
 
 
         # Queue the async email task
-        send_verification_email.delay(user.email, verification_token)
+        verification_url = f"{settings.FRONTEND_URL.rstrip('/')}/verify-email/{verification_token}"
+        send_verification_email.delay(user.email, verification_url)
 
         logger.info(f"Resend verification email queued for {user.email}")
 

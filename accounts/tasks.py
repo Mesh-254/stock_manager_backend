@@ -9,9 +9,10 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=60)
-def send_verification_email(self, user_email: str, verification_token: str):
-    verification_url = f"{settings.FRONTEND_URL.rstrip('/')}/verify-email/{verification_token}"
-
+def send_verification_email(self, user_email: str, verification_url: str):
+    """
+    Sends verification email. URL is now built in the view (consistent with password reset).
+    """
     subject = "Activate Your SHOP Manager Account"
     message = (
         f"Hello,\n\n"
@@ -37,7 +38,6 @@ def send_verification_email(self, user_email: str, verification_token: str):
     except Exception as exc:
         logger.error(f"Failed to send verification email to {user_email}: {exc}")
         raise self.retry(exc=exc)
-
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=60)
 def send_password_reset_email(self, user_email: str, reset_url: str):

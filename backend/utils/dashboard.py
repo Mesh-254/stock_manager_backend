@@ -119,15 +119,24 @@ def dashboard_callback(request, extra_context=None):
 
     # Stock by category (current value)
     stock_by_category = list(
-        base_stock.annotate(category_name=F("product__category__name"))
-        .values("category_name")
-        .annotate(value=Coalesce(Sum(F("quantity") * F("product__average_cost_price")), Decimal("0")))
+        base_stock.values("product__category__name")
+        .annotate(value=Coalesce(
+            Sum(F("quantity") * F("product__average_cost_price")), Decimal("0")
+        ))
         .order_by("-value")
     )
-    stock_by_category_json = json.dumps([
-        {"category__name": item["category_name"] or "Unknown", "value": float(item["value"])}
-        for item in stock_by_category
-    ])
+
+    # Convert to JSON-safe format
+    stock_by_category_json = json.dumps(
+        [
+            {
+                "product__category__name": item["product__category__name"],
+                "value": float(item["value"]),
+            }
+            for item in stock_by_category
+        ]
+    )
+
 
     # ====================== FINAL CONTEXT ======================
     extra_context.update({
